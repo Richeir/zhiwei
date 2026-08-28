@@ -1,0 +1,51 @@
+# Node / JS
+node_modules/
+.yarn/
+npm-debug.log*
+yarn-error.log*
+*.log
+coverage/
+.env
+.env.*
+
+# macOS
+.DS_Store
+
+# React Native / iOS
+ios/Pods/
+**/Pods/
+**/xcuserdata/
+*.xcscmblueprint
+DerivedData/
+
+# Android
+android/.gradle/
+android/app/build/
+android/build/
+local.properties
+*.keystore
+!debug.keystore
+
+# Xcode generic build
+build/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# macOS target (react-native-macos)
+macos/Pods/
+macos/build/
+macos/**/xcuserdata/
+
+# Windows target (react-native-windows)
+windows/**/bin/
+windows/**/obj/
+windows/**/.vs/
+windows/MyWeiboApp/MyWeiboApp.vcxproj.user
+*.msix
+*.pfx
+
+# Editors / misc
+.vscode/*
+!.vscode/extensions.json
+.idea/
