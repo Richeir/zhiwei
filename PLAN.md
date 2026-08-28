@@ -2,8 +2,8 @@
 
 > 目标：用 React Native 构建一个微博客户端，代码绝大部分共享，一套仓库同时产出 **iOS / Android / macOS** 三个平台的应用。
 >
-> 文档状态：v3 · 收敛为三平台（iOS / Android / macOS）· 待评审
-> 修订记录：v2 — 放弃开放平台申请路线，改用微博 Web 接口 + WebView 会话代理（D9、R1、R2、R7、M1 相应调整）；v3 — 彻底移除 Windows 平台，聚焦 iOS / Android / macOS，总工期相应压缩
+> 文档状态：v3.1 · 评审修订版 · 待评审
+> 修订记录：v2 — 放弃开放平台申请路线，改用微博 Web 接口 + WebView 会话代理（D9、R1、R2、R7、M1 相应调整）；v3 — 彻底移除 Windows 平台，聚焦 iOS / Android / macOS，总工期相应压缩；v3.1 — 评审修复：R7 spike 扩为四项判据（隐藏常驻/XSRF 可读/上传跨域）、iOS 分发去 TestFlight 对齐"不上架"口径、依赖矩阵措辞回归"未验证不标已验证"、工期算术与图片 Referer 项补位
 > 交付物约定：每个里程碑（Mx）都有验收标准（DoD）与可勾选的任务清单。
 
 ---
@@ -17,7 +17,7 @@
 | 平台 | iOS、Android、macOS |
 | 数据来源 | **微博 Web 端接口**（无需开放平台申请；路线 B：隐藏 WebView 同源代理，见 D9；合规约束见 R1） |
 | 团队假设 | 1–2 名开发，全栈 RN |
-| 总工期估算 | 约 12–14.5 周（详见 §10） |
+| 总工期估算 | 串行之和 16.5 周；并行后关键路径约 12–14.5 周（详见 §10） |
 
 ### 1.1 产品目标（P0 = 首版必须，P1 = 首版尽量，P2 = 后续迭代）
 
@@ -46,13 +46,13 @@
 | D6 | 状态与数据 | Zustand（UI 状态）+ TanStack Query（服务端数据）+ `WebViewChannel` 页面内 fetch（替代 Axios，见 D9） | 轻量、纯 JS、无原生依赖，天然三平台兼容 |
 | D7 | UI 组件 | 自建薄组件层 + React Native Paper（可选主题层） | 避免依赖只支持手机端的组件库；桌面差异用扩展文件处理 |
 | D8 | 语言 | TypeScript 全覆盖 | — |
-| D9 | **数据通道（路线 B）** | App 常驻**离屏 WebView**（保持已登录的 weibo.com 同源会话），所有 API 调用经 `injectJavaScript` 在**页面内发起 `fetch`**；`src/api/` 保留后端抽象（`web/` 默认实现，`openapi/` 留位） | 免申请、免审核，接口能力即网页全量能力；Cookie（含 httpOnly 的 `SUB`）由原生 CookieJar 管理，无需三端各写 Cookie 桥，`X-XSRF-TOKEN` 等参数页面自带；代价 = 风控长期维护（R1）+ WebView 常驻内存 |
+| D9 | **数据通道（路线 B）** | App 常驻**离屏 WebView**（保持已登录的 weibo.com 同源会话），所有 API 调用经 `injectJavaScript` 在**页面内发起 `fetch`**；`src/api/` 保留后端抽象（`web/` 默认实现，`openapi/` 留位） | 免申请、免审核，接口能力即网页全量能力；Cookie（含 httpOnly 的 `SUB`）由原生 CookieJar 管理，无需三端各写 Cookie 桥；`X-XSRF-TOKEN` 等参数预期可由页面脚本读取后附带（httpOnly 与否待 R7 判据③实证）；代价 = 风控长期维护（R1）+ WebView 常驻内存 |
 
 ### 2.2 仓库结构（规划）
 
 ```
 my-weibo-app/
-├── index.js                    # 单一入口，注册 AppRegistry（含 Desktop_app 注册）
+├── index.js                    # 单一入口，注册 AppRegistry（含桌面 target appKey 注册）
 ├── package.json                # 依赖三平台框架与 scripts（ios/android/macos）
 ├── ios/                        # RN iOS 工程（CocoaPods）
 ├── android/                    # RN Android 工程（Gradle）
@@ -86,14 +86,16 @@ my-weibo-app/
 | **R3** | 新架构（0.76+ Fabric 默认）与 RN macOS 的支持节奏不完全同步，部分三方库未适配 | 中 | M0 阶段做一次**三平台空工程 spike**，锁定一个 RN core ↔ RN macOS 对齐的 minor 版本再大规模开发 |
 | **R4** | 三方库平台覆盖不全（图片库、secure storage、键盘管理、列表优化等大多只支持 iOS/Android） | 中 | 每个依赖先过 §7 的"依赖准入矩阵"；桌面端回退到官方组件 + JS 实现 |
 | **R6** | 长列表 + 富文本 + 图片在桌面端性能表现未经检验 | 中 | M2 结束前做 1k 条时间线滚动压测，三端记录 FPS |
-| **R7** | `react-native-webview` 在 macOS 的支持与"离屏常驻 + 页面内 fetch"模式的稳定性未实测 | 高（路线 B 地基） | M0 首个 spike 三端验证：隐藏 WebView 加载 weibo.com → 注入 fetch → 取回 JSON；失败则桌面端回退"原生 Cookie 桥 + 直连 HTTP"方案，或收缩桌面端 |
+| **R7** | `react-native-webview` 在 macOS 的支持与"离屏常驻 + 页面内 fetch"模式的稳定性未实测。两个隐含假设同样待证：① WKWebView 脱离视图树/0×0 时 JS 可能被挂起，"离屏常驻"可能需 1×1 透明常驻视图等技巧；② 上传接口在跨域域名，页面内 fetch 可能撞 CORS | 高（路线 B 地基） | M0 首个 spike 三端验证，**四项判据全过才算通过**：① 隐藏 WebView 加载 weibo.com → 注入 fetch → 取回 JSON；② 隐藏态、前后台切换、锁屏恢复后通道仍可用；③ 页面内 POST 能读取并附带 `X-XSRF-TOKEN`；④ 上传端点跨域行为实测。任一失败即触发方案评审：回退"原生 Cookie 桥 + 直连 HTTP"、上传改走可见 WebView，或收缩桌面端 |
+
+> 注：R5 已随 Windows 平台移除，编号有意不回排，以保持 R6/R7 在下文的引用稳定。
 
 **开工前核对：**
 
 - [ ] 项目定位确认：个人学习/开源演示，GitHub 分发，不上架、不商用、不批量抓取
 - [ ] 已通读微博用户协议相关条款，README 免责声明文案备好
 - [ ] 个人微博账号 Web 端扫码登录正常，作为开发验证账号
-- [ ] `react-native-webview` 离屏代理 spike 三端通过（R7，M0 首项）
+- [ ] `react-native-webview` 离屏代理 spike 三端通过，覆盖 R7 全部四项判据（含隐藏常驻与上传跨域）（M0 首项）
 - [ ] 已盘点开发机：Mac（Xcode ≥ 15）× 1（同时覆盖 iOS/macOS 开发）、iOS/Android 真机各 1
 - [ ] 已通过 spike 锁定 RN core 与 RN macOS 对齐的版本号，记录到 `docs/VERSIONS.md`
 
@@ -152,7 +154,7 @@ my-weibo-app/
 
 依赖：M0 的 WebView spike（R7）通过。
 
-- [ ] `WebViewChannel` 基座：常驻离屏 WebView（保持 weibo.com 源）、页面内 fetch 封装、请求 ID ↔ 回包关联、并发队列
+- [ ] `WebViewChannel` 基座：常驻离屏 WebView（保持 weibo.com 源）、页面内 fetch 封装、请求 ID ↔ 回包关联、并发队列；隐藏态/前后台切换/锁屏恢复存活测试通过（R7 判据②）
 - [ ] 登录窗口：内嵌 WebView 打开微博**扫码登录页**，用户人工完成（含滑块/短信验证），App 全程不接触账密
 - [ ] 会话检测：轻量端点探测登录态；过期自动唤起重新登录
 - [ ] "当前账号"全局状态（页面内 GET 自己的 profile → Zustand store）
@@ -166,6 +168,7 @@ my-weibo-app/
 - [ ] 节流与缓存落地：全局限流生效、TanStack Query staleTime + 本地缓存（**降低风控触发概率优先于数据新鲜度**）
 - [ ] 微博 Cell 组件：头像、昵称、认证标识、时间（相对时间）、来源、正文（含 @/话题/链接富文本渲染）、配图九宫格
 - [ ] 下拉刷新 + 无限滚动分页（游标参数以 Web 端点实测为准）
+- [ ] 图片加载 spike：`wx*.sinaimg.cn` 是否需要伪造 Referer、RN `Image` headers 在三端的支持实测（与 §7 图片库验证合并）
 - [ ] 图片查看器（全屏、缩放、翻页）——平台兼容矩阵验证后选型
 - [ ] 视频卡片（内联预览 + 点击进入播放；播放器三端支持是难点，允许 M2 降级为外链播放）
 - [ ] 长列表性能：滚动 1k 条记录三端帧率，优化到 ≥ 50fps
@@ -177,7 +180,7 @@ my-weibo-app/
 - [ ] 发布编辑器：正文输入（140/长文提示）、计数
 - [ ] 图片选择与多选上传（相册权限：iOS/Android；macOS 用 NSOpenPanel 桥接——平台扩展文件实现）
 - [ ] 话题 #xx# 插入、@ 好友（可选 P1）
-- [ ] 发送走页面内 POST：`X-XSRF-TOKEN` 等防重放参数由页面环境天然携带（路线 B 红利）
+- [ ] 发送走页面内 POST：`X-XSRF-TOKEN` 由页面脚本读取后附带（可读性以 M0 spike R7 判据③实证为准，非天然保证）；失败预案 = 上传/发布改走可见 WebView 内完成
 - [ ] 发送中状态、失败重试、草稿本地保存
 - [ ] 发布成功后时间线插入新条目
 - [ ] DoD：三端能发纯文本 + 带图微博并立即可见
@@ -226,7 +229,9 @@ my-weibo-app/
 - [ ] 设置页：主题、字号、网络图片策略、清缓存
 - [ ] DoD：macOS 桌面端达到"愿意日常使用"的基本体验，截图评审通过
 
-### M9 · 质量与发布（约 2 周，见 §8/§9）
+### M9 · 质量与发布（约 2 周）
+
+- [ ] 执行 §8.1 测试、§8.2 CI/CD、§8.3 发布通道全部条目，DoD 见 §9
 
 ---
 
@@ -236,11 +241,11 @@ my-weibo-app/
 |---|---|---|---|---|
 | react-native (core) | ✅ | ✅ | — | 基准版本锁 `docs/VERSIONS.md` |
 | react-native-macos | — | — | ✅ | 与 core 同 minor |
-| @react-navigation/native + elements(JS) | ✅ | ✅ | ✅ | 已验证三端纯 JS 可用 |
+| @react-navigation/native + elements(JS) | ⚠️ | ⚠️ | ⚠️ | JS 实现预期三端可用，M0 spike 随工程验证（未实测不标 ✅） |
 | @react-native-async-storage/async-storage | ✅ | ✅ | ✅ | 官方支持 |
 | zustand / @tanstack/query | ✅ | ✅ | ✅ | 纯 JS |
 | react-native-keychain | ⚠️ | ⚠️ | ⚠️ | 路线 B 下基本不再需要（凭证留在 WebView CookieJar）；仅当要存其他敏感信息时重新评估 |
-| expo-image / fast-image | ⚠️ | ⚠️ | ⚠️ | spike 验证，失败则 RN `Image` + 手动缓存 |
+| expo-image / fast-image | ⚠️ | ⚠️ | ⚠️ | spike 验证（与 M2 图片加载/Referer 实测合并），失败则 RN `Image` + 手动缓存 |
 | react-native-gesture-handler | ⚠️ | ⚠️ | ⚠️ | 移动端图片查看器可用；macOS 支持随 M0 spike 实测，失败则回退 JS PanResponder |
 | react-native-webview | ✅ | ✅ | ⚠️ | **路线 B 核心依赖**（登录 + API 通道）；macOS 稳定性为 M0 首要 spike（R7） |
 |（新库按需追加）| | | | |
@@ -274,7 +279,7 @@ my-weibo-app/
 
 ### 8.3 发布通道
 
-- [ ] iOS：TestFlight（Apple 开发者账号）
+- [ ] iOS：本机自签分发（Xcode 签名，免费账号 7 天重签 / 付费账号更久），README 附编译步骤。**不用 TestFlight**——其外测需过 App Store Connect Beta 审核，与 §1.1"不上架"及 R1 低调姿态冲突；仅限直连设备安装
 - [ ] Android：apk 直发 / GitHub Releases；（若上架国内商店需另行合规评估）
 - [ ] macOS：直接分发 .dmg（本地签名）+ notarization
 
@@ -298,7 +303,7 @@ my-weibo-app/
 
 | 阶段 | 内容 | 工期 | 出口条件 |
 |---|---|---|---|
-| M0 | 环境与架构基线（§4、§5、§7 spike） | 1.5 周 | 三端 Hello World + 版本锁定 + 依赖矩阵 |
+| M0 | 环境与架构基线（§4、§5、§7 spike） | 1.5 周 | 三端 Hello World + 版本锁定 + 依赖矩阵 + **R7 四项判据全过** |
 | M1 | 登录与会话（WebViewChannel 基座） | 1 周 | 三端扫码登录 + 通道基座稳定 |
 | M2 | 时间线 | 2 周 | 三端刷微博 + 性能达标 |
 | M3 | 发布微博 | 1.5 周 | 三端发文闭环 |
@@ -308,7 +313,7 @@ my-weibo-app/
 | M7 | 消息中心 | 1.5 周 | 通知列表可用 |
 | M8 | 桌面打磨（macOS） | 1.5 周（可与 M6/7 并行） | 桌面体验走查通过 |
 | M9 | 测试收尾、CI/CD、三端发布 | 2 周 | §9 全部通过 |
-| **合计** | | **约 12–14.5 周（并行后 ≈ 11 周）** | |
+| **合计** | | **串行之和 16.5 周；M8 与 M6/7 并行后关键路径约 12–14.5 周** | |
 
 > 关键路径：M0 的 **WebViewChannel 三端 spike（R7）** 与 RN 版本对齐 spike（R3）——开放平台权限不再是阻塞项，但 R7 是路线 B 的地基，失败即触发方案评审（回退原生 Cookie 桥或收缩桌面端）。任一 spike 失败应在 M0 结束时定案，不带病进入 M1。
 
