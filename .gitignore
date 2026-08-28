@@ -37,14 +37,6 @@ macos/Pods/
 macos/build/
 macos/**/xcuserdata/
 
-# Windows target (react-native-windows)
-windows/**/bin/
-windows/**/obj/
-windows/**/.vs/
-windows/MyWeiboApp/MyWeiboApp.vcxproj.user
-*.msix
-*.pfx
-
 # Editors / misc
 .vscode/*
 !.vscode/extensions.json
