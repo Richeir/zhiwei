@@ -1,41 +1,29 @@
-# Node / JS
-node_modules/
-.yarn/
-npm-debug.log*
-yarn-error.log*
+# macOS
+.DS_Store
 *.log
-coverage/
+
+# 环境/密钥（登录凭证本就不落 App 存储，见 PLAN.md §5；此段防误提）
 .env
 .env.*
 
-# macOS
-.DS_Store
-
-# React Native / iOS
-ios/Pods/
-**/Pods/
+# Xcode 工程（由 XcodeGen 生成：*.xcodeproj 为产物，禁止入库/手改，见 PLAN.md D4/§5）
+*.xcodeproj/
+*.xcworkspace/
 **/xcuserdata/
 *.xcscmblueprint
 DerivedData/
-
-# Android
-android/.gradle/
-android/app/build/
-android/build/
-local.properties
-*.keystore
-!debug.keystore
-
-# Xcode generic build
 build/
 *.ipa
 *.dSYM.zip
 *.dSYM
+*.xcresult
 
-# macOS target (react-native-macos)
-macos/Pods/
-macos/build/
-macos/**/xcuserdata/
+# Swift Package Manager（工作区本地状态；依赖版本约束声明在 project.yml）
+.build/
+.swiftpm/
+
+# 测试产物
+coverage/
 
 # Editors / misc
 .vscode/*

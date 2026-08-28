@@ -44,7 +44,7 @@
 | D6 | 状态与数据 | **Observation（`@Observable`）+ URLSession + Repository 层**（分页/缓存/游标自研薄层） | Apple 官方观察框架，不引入大型三方状态库；服务端数据统一走 `APIWeb` Repository |
 | D7 | UI 组件 | 自建薄组件层（Cell/Avatar/RichText）+ **Liquid Glass 视觉层**（`.glassEffect` + `GlassEffectContainer`、`.buttonStyle(.glass)`、`glassEffectID` 形变转场；toolbar/tab bar 系统默认即玻璃） | 毛玻璃是系统语言而非自建效果；微博信息密度场景组件有限，自建成本低于选型内耗；视觉红利是换 Swift 的直接动机之一 |
 | D8 | 语言 | **Swift** 全覆盖 | 原 TypeScript；RN 时代的完整技术论证与代码记录在 git 历史 |
-| D9 | **数据通道（路线 B，原生化）** | 常驻**离屏 WKWebView** 保持已登录的 weibo.com 同源会话；双车道取数：**车道① 页面内 fetch**（`evaluateJavaScript` 注入，`WKScriptMessageHandlerWithReply` 结构化回传）用于业务读接口；**车道② 原生 URLSession**（经 `WKHTTPCookieStore` 同步 Cookie）用于**上传/发布**。`Core/APIWeb` 保留后端抽象（`web/` 默认实现，`openapi/` 留位） | 免申请、免审核；相比 RN 路线的两大质变：**(a)** `WKHTTPCookieStore.getAllCookies` 原生可直接读 **httpOnly** 的 `SUB`/`XSRF-TOKEN`，不再依赖"页面脚本能读到"这个未证假设；**(b)** CORS 只是浏览器安全模型，**URLSession 上传天然不受限**，只需按服务端校验补齐 Referer/Origin 头。代价不变 = 风控长期维护（R1）+ WebView 常驻内存 |
+| D9 | **数据通道（路线 B，原生化）** | 常驻**离屏 WKWebView** 保持已登录的 weibo.com 同源会话；双车道取数：**车道① 页面内 fetch**（`evaluateJavaScript` 注入，`WKScriptMessageHandlerWithReply` 结构化回传）用于业务读接口；**车道② 原生 URLSession**（经 `WKHTTPCookieStore` 同步 Cookie）主要用于**上传/发布**，亦用于不依赖页面上下文的轻量直发请求（如会话探测）。`Core/APIWeb` 保留后端抽象（`web/` 默认实现，`openapi/` 留位） | 免申请、免审核；相比 RN 路线的两大质变：**(a)** `WKHTTPCookieStore.getAllCookies` 原生可直接读 **httpOnly** 的 `SUB`/`XSRF-TOKEN`，不再依赖"页面脚本能读到"这个未证假设；**(b)** CORS 只是浏览器安全模型，**URLSession 上传天然不受限**，只需按服务端校验补齐 Referer/Origin 头。代价不变 = 风控长期维护（R1）+ WebView 常驻内存 |
 
 ### 2.2 仓库结构（规划）
 
@@ -99,7 +99,7 @@ my-weibo-app/
 
 ### 4.1 通用
 
-- [ ] Xcode 26（Swift 6.2）+ Command Line Tools（宿主 macOS 版本按 [Xcode 系统要求](https://developer.apple.com/jp/xcode/system-requirements/) 核对）
+- [ ] Xcode 26（Swift 6.2）+ Command Line Tools（宿主 macOS 版本按 [Xcode 系统要求](https://developer.apple.com/xcode/system-requirements/) 核对）
 - [ ] XcodeGen 安装（`brew install xcodegen`）+ `project.yml` 跑通
 - [ ] SwiftLint + SwiftFormat 配置并接入 pre-commit
 - [ ] Git 仓库初始化 + `.gitignore`（构建产物、生成的 xcodeproj）
@@ -113,10 +113,13 @@ my-weibo-app/
 ---
 
 ## 5. 架构基线 Checklist（M0 出口条件）
+
+> 边界：通道类条目（WebViewChannel / 风控降级）在本节**只定样并用 spike 级实现验证 R7 判据**（可抛弃代码），生产实现归 M1；其余基线条目直接生效。各阶段出口条件以 §10 为准。
+
 - [ ] `xcodegen generate` → 工程打开即跑，模拟器/真机启动同一 App
-- [ ] SPM 依赖锁定（`Package.swift`/工作区），无 CocoaPods 残留
-- [ ] `Core/WebViewChannel`：协议 `WebViewChannel { func fetch(_:) async throws -> Data }` + 双实现（页面内 fetch 车道 / 原生 URLSession 车道）+ **限流 actor**（间隔 ≥1s、并发 ≤2）+ 超时/重试/统一错误模型（`APIError` enum 含 `.punished` case）
-- [ ] 风控降级链路：识别 punish/验证码响应 → 唤起可见 WKWebView 人工验证 → 自动重放失败请求
+- [ ] SPM 依赖锁定：版本约束声明在 `project.yml`（生成的 `*.xcodeproj` 不入库，其内 `Package.resolved` 随之失效，约束必须落在文本定义里），无 CocoaPods 残留
+- [ ] `Core/WebViewChannel` **协议与错误模型定样**：`WebViewChannel { func fetch(_:) async throws -> Data }`，`APIError` enum 含 `.punished` case；M0 以双车道 spike 实现跑通 R7 判据即可，生产实现（含**限流 actor**：间隔 ≥1s、并发 ≤2，超时/重试）见 M1
+- [ ] 风控降级链路**方案定样**（识别 punish/验证码响应 → 唤起可见 WKWebView 人工验证 → 自动重放失败请求）；实现归 M1
 - [ ] `Core/APIWeb`：端点注册表 + DTO（`Codable`）骨架，`openapi/` 留位
 - [ ] 存储层：偏好/草稿/搜索历史 KV 封装；**登录凭证不落 App 存储**（Cookie 只存在于系统 WebKit CookieJar）
 - [ ] 日志 `os.Logger` 按子系统分域 + Sentry 占位
@@ -129,11 +132,13 @@ my-weibo-app/
 
 ## 6. 功能里程碑
 
+> M0（环境与架构基线）见 §4/§5，本节不重复；各阶段出口条件汇总在 §10。
+
 ### M1 · 登录与会话
 
 依赖：M0 的路线 B spike（R7）通过。
 
-- [ ] `WebViewChannel` 基座：常驻离屏 WKWebView（保持 weibo.com 源）、`evaluateJavaScript` 注入 fetch + `WKScriptMessageHandlerWithReply` 回传（请求 ID ↔ 回包关联）、并发队列；隐藏态/前后台切换/锁屏恢复存活实测通过（R7 判据①②）
+- [ ] `WebViewChannel` 生产实现（§5 定样协议/错误模型的落地）：常驻离屏 WKWebView（保持 weibo.com 源）、`evaluateJavaScript` 注入 fetch + `WKScriptMessageHandlerWithReply` 回传（请求 ID ↔ 回包关联）、**限流 actor**（间隔 ≥1s、并发 ≤2）+ 超时/重试；风控降级链路实现；隐藏态/前后台切换/锁屏恢复存活实测通过（R7 判据①②）
 - [ ] 登录窗口：sheet 内嵌可见 WKWebView 打开微博**扫码登录页**，用户人工完成（含滑块/短信验证），App 全程不接触账密
 - [ ] 会话检测：轻量端点探测登录态（原生车道带 Cookie 直发）；过期自动唤起重新登录
 - [ ] Cookie 同步：`WKHTTPCookieStore` 读取（含 httpOnly）→ 注入 `HTTPCookieStorage.shared`，原生车道自动携带（R7 判据③）
@@ -248,7 +253,7 @@ my-weibo-app/
 
 ### 8.3 发布通道
 
-- [ ] iOS：本机自签分发（Xcode 签名，免费账号 7 天重签；日常主力机使用时建议付费开发者账号，签名有效期 ≥1 年），README 附"clone → xcodegen → 运行"三步说明。**不用 TestFlight**——其外测需过 App Store Connect Beta 审核，与 §1.1"不上架"及 R1 低调姿态冲突；仅限直连设备安装
+- [ ] iOS：本机自签分发（Xcode 签名，免费账号 7 天重签；日常主力机使用时建议付费开发者账号，签名有效期 ≥1 年），README 附"clone → xcodegen → 运行"三步说明。**不用 TestFlight**——外部测试组需过 App Store Connect Beta 审核，与 §1.1"不上架"及 R1 低调姿态冲突（内部测试组虽免审核，但对单人演示无增益）；仅限直连设备安装
 - 注：分发完全锁在 Apple 签名体系内；历史上多端（Android 最廉价分发、macOS 共享 Darwin）与 RN 方案的完整论证见 git 历史
 
 ---
@@ -274,7 +279,7 @@ my-weibo-app/
 | 阶段 | 内容 | 出口条件 |
 |---|---|---|
 | M0 | 环境与架构基线（§4、§5、§7 spike） | Hello World 双环境可跑 + 版本锁定 + 依赖清单 + **R7 四项判据全过** |
-| M1 | 登录与会话（WebViewChannel 基座） | 扫码登录 + 双车道通道稳定 + 会话重启恢复 |
+| M1 | 登录与会话（WebViewChannel 生产实现） | 扫码登录 + 双车道稳定（含限流 actor 与风控降级）+ 会话重启恢复 |
 | M2 | 时间线 | 真机刷微博 + 性能达标 + 毛玻璃导航落地 |
 | M3 | 发布微博 | 发文（含图）闭环 |
 | M4 | 详情与互动 | 评论/转发/点赞闭环 |
