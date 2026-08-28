@@ -13,7 +13,7 @@
 |---|---|
 | 产品形态 | 新浪微博第三方客户端（iOS） |
 | 技术栈 | Swift + SwiftUI（WKWebView 仅作登录与数据通道宿主）+ Swift Package Manager |
-| 平台 | iOS（最低支持 **iOS 17**，用 `@Observable`/NavigationStack；装旧设备则降 16 换 `ObservableObject`，M0 定） |
+| 平台 | iOS（最低 **iOS 26**，iPhone 11/SE2 起——XR/XS 已止步于 18，个人演示定位无碍） |
 | 数据来源 | **微博 Web 端接口**（无需开放平台申请；路线 B：隐藏 WKWebView 同源会话，见 D9；合规约束见 R1） |
 | 执行方式 | **AI 全量执行**（编码、测试脚手架、CI 配置）；人负责验收走查、真机操作与风控人工验证环节 |
 
@@ -36,13 +36,13 @@
 
 | # | 决策点 | 选择 | 理由 / 备选 |
 |---|---|---|---|
-| D1 | UI 栈 | **SwiftUI-first，UIKit 定点桥接** | 列表/导航/表单全 SwiftUI；WKWebView 宿主、个别交互（图片查看器手势）经 `UIViewRepresentable` 下沉 UIKit，不追求纯血 |
+| D1 | UI 栈 | **SwiftUI-first，UIKit 定点桥接** | 列表/导航/表单全 SwiftUI；WKWebView 宿主、个别交互（图片查看器手势）经 `UIViewRepresentable` 下沉 UIKit，不追求纯血；iOS 26 底零兼容包袱：Swift 6.2 严格并发、`@Observable`/NavigationStack/Liquid Glass 全量可用 |
 | D2 | 桌面端框架 | —（已废弃） | 原 react-native-macos；技术栈转 Swift 后连同"多平台"前提一并废弃 |
 | D3 | 多平台组织 | —（已废弃） | 原平台扩展文件；单平台单栈，不存在跨端分叉 |
 | D4 | 工程管理 | **XcodeGen（`project.yml` 文本定义）+ SPM 依赖** | 工程文件不手改 pbxproj，AI 可全量生成与 review；依赖走 SPM，无 CocoaPods |
 | D5 | 导航 | **SwiftUI `NavigationStack` + `TabView`**，Route 定义为 enum | 系统原生栈：大标题、滑动返回、contextMenu、`.searchable` 全部免费 |
 | D6 | 状态与数据 | **Observation（`@Observable`）+ URLSession + Repository 层**（分页/缓存/游标自研薄层） | Apple 官方观察框架，不引入大型三方状态库；服务端数据统一走 `APIWeb` Repository |
-| D7 | UI 组件 | 自建薄组件层（Cell/Avatar/RichText）+ **Material 视觉层**（`.ultraThinMaterial` 毛玻璃导航栏、浮层、`.toolbarBackground`） | 微博信息密度场景组件有限，自建成本低于选型内耗；视觉红利是换 Swift 的直接动机之一 |
+| D7 | UI 组件 | 自建薄组件层（Cell/Avatar/RichText）+ **Liquid Glass 视觉层**（`.glassEffect` + `GlassEffectContainer`、`.buttonStyle(.glass)`、`glassEffectID` 形变转场；toolbar/tab bar 系统默认即玻璃） | 毛玻璃是系统语言而非自建效果；微博信息密度场景组件有限，自建成本低于选型内耗；视觉红利是换 Swift 的直接动机之一 |
 | D8 | 语言 | **Swift** 全覆盖 | 原 TypeScript；RN 时代的完整技术论证与代码记录在 git 历史 |
 | D9 | **数据通道（路线 B，原生化）** | 常驻**离屏 WKWebView** 保持已登录的 weibo.com 同源会话；双车道取数：**车道① 页面内 fetch**（`evaluateJavaScript` 注入，`WKScriptMessageHandlerWithReply` 结构化回传）用于业务读接口；**车道② 原生 URLSession**（经 `WKHTTPCookieStore` 同步 Cookie）用于**上传/发布**。`Core/APIWeb` 保留后端抽象（`web/` 默认实现，`openapi/` 留位） | 免申请、免审核；相比 RN 路线的两大质变：**(a)** `WKHTTPCookieStore.getAllCookies` 原生可直接读 **httpOnly** 的 `SUB`/`XSRF-TOKEN`，不再依赖"页面脚本能读到"这个未证假设；**(b)** CORS 只是浏览器安全模型，**URLSession 上传天然不受限**，只需按服务端校验补齐 Referer/Origin 头。代价不变 = 风控长期维护（R1）+ WebView 常驻内存 |
 
@@ -90,7 +90,7 @@ my-weibo-app/
 - [ ] 已通读微博用户协议相关条款，README 免责声明文案备好
 - [ ] 个人微博账号 Web 端扫码登录正常，作为开发验证账号
 - [ ] **路线 B 原生 spike 通过，覆盖 R7 全部四项判据**（隐藏常驻/桥回传存活/Cookie 直读/上传校验）（M0 首项）
-- [ ] 已盘点设备：Mac（Xcode ≥ 16）× 1、iPhone 真机 × 1
+- [ ] 已盘点设备：Mac（Xcode ≥ 26，Swift 6.2）× 1、iPhone 真机 × 1（已升 iOS 26+）
 - [ ] Xcode / Swift / 最低 iOS 版本记录到 `docs/VERSIONS.md`
 
 ---
@@ -99,7 +99,7 @@ my-weibo-app/
 
 ### 4.1 通用
 
-- [ ] Xcode（≥ 16）+ Command Line Tools
+- [ ] Xcode 26（Swift 6.2）+ Command Line Tools（宿主 macOS 版本按 [Xcode 系统要求](https://developer.apple.com/jp/xcode/system-requirements/) 核对）
 - [ ] XcodeGen 安装（`brew install xcodegen`）+ `project.yml` 跑通
 - [ ] SwiftLint + SwiftFormat 配置并接入 pre-commit
 - [ ] Git 仓库初始化 + `.gitignore`（构建产物、生成的 xcodeproj）
@@ -108,7 +108,7 @@ my-weibo-app/
 
 - [ ] 模拟器运行 SwiftUI Hello World 成功
 - [ ] 真机签名（开发者账号）配置完成，能装能调试
-- [ ] 确认目标机型与最低 iOS 版本（iOS 17 起步？见 D1 备注）
+- [ ] 目标真机已升级 iOS 26+（Liquid Glass 生效的前提；最低 iPhone 11/SE2）
 
 ---
 
@@ -121,7 +121,7 @@ my-weibo-app/
 - [ ] 存储层：偏好/草稿/搜索历史 KV 封装；**登录凭证不落 App 存储**（Cookie 只存在于系统 WebKit CookieJar）
 - [ ] 日志 `os.Logger` 按子系统分域 + Sentry 占位
 - [ ] 导航壳：`TabView` + 各 tab 内 `NavigationStack`，集中 Route enum
-- [ ] 主题：`Color` 资源 + light/dark 跟随系统；Material 视觉层基础样式（导航栏 `.ultraThinMaterial`）
+- [ ] 主题：`Color` 资源 + light/dark 跟随系统；Liquid Glass 基础层定样（玻璃浮层容器、`.buttonStyle(.glass)`、"降低透明度"无障碍模式下的回退观感）
 - [ ] 测试基建：XCTest target 空跑通 + CI lint/typecheck/test
 - [ ] `docs/ARCHITECTURE.md` 记录 D1–D9 决策与理由（含废弃项说明）
 
@@ -150,8 +150,8 @@ my-weibo-app/
 - [ ] 下拉刷新 + 无限滚动分页（游标参数以 Web 端点实测为准）
 - [ ] 图片加载 spike：`wx*.sinaimg.cn` 是否需要伪造 Referer、Kingfisher/`AsyncImage` 自定义请求头实测（与 §7 图片库验证合并）
 - [ ] 图片查看器（全屏、缩放、翻页；`matchedGeometryEffect` 列表→详情转场）
-- [ ] 视频卡片（内联预览 + 点击进入播放，AVKit 系统能力，无跨端之忧）
-- [ ] **毛玻璃导航栏**：`.toolbarBackground(.ultraThinMaterial)` + scrollEdge 行为；浮动发博按钮 Material 底
+- [ ] 视频卡片（内联预览 + 点击进入播放，`VideoView`（AVKit，iOS 26 SwiftUI 原生））
+- [ ] **Liquid Glass 落地**：浮动发博按钮 `.glassEffect` + `GlassEffectContainer` 统一渲染（相邻玻璃自动融合）；玻璃↔全屏图片的 `glassEffectID` 形变转场；toolbar/tab bar 系统默认液态玻璃在各滚动边缘行为走查
 - [ ] 长列表性能：滚动 1k 条记录，iPhone 真机 ≥ 50fps（Instruments 定位解码抖动，图片降采样）
 - [ ] 骨架屏与空态/错误态
 - [ ] DoD：真机流畅刷微博，转发微博与图片时间线渲染正确
@@ -242,7 +242,7 @@ my-weibo-app/
 ### 8.2 CI/CD（GitHub Actions）
 
 - [ ] PR 门禁：swiftlint + swiftformat --lint + 编译 + 单测（macos runner 上 `xcodebuild test`）
-- [ ] `ios.yml`：xcodegen → 模拟器构建 → 跑契约快照
+- [ ] `ios.yml`：xcodegen → 模拟器构建（iOS 26 runtime，iPhone + SE 类小屏各一）→ 跑契约快照
 - [ ] 版本与 Changelog 自动化（semantic-release 或手动 tag）
 - [ ] 制品归档：`.ipa`/`.app` 构建产物落到 Release 页
 
@@ -258,7 +258,7 @@ my-weibo-app/
 - [ ] iOS 首版安装包可在干净环境（clone + xcodegen + 签名，或 CI 产物）安装运行
 - [ ] M1–M5 全部 P0 功能真机走查通过，截图/录屏留档到 `docs/reviews/`
 - [ ] 冷启动 < 2s（基准机型）；时间线滚动 ≥ 50fps（iPhone 真机）
-- [ ] 毛玻璃导航栏/浮层在 light/dark 下渲染正确，无滚动抖动
+- [ ] Liquid Glass（toolbar/发博按钮/浮层）在 light/dark 与"降低透明度"模式下渲染正确，无滚动抖动
 - [ ] 崩溃率：内部测试期无阻断性崩溃；离线/弱网有明确降级 UI
 - [ ] 登录凭证仅存于系统 WebKit CookieJar；App 自有存储与日志中无任何 Cookie/凭证
 - [ ] README 显著位置含免责声明与使用限制（个人学习用途、低频访问、尊重服务器），与 R1 缓解措施一致
@@ -291,6 +291,8 @@ my-weibo-app/
 ## 11. 参考资料
 
 - SwiftUI 文档：<https://developer.apple.com/documentation/swiftui>
+- Liquid Glass（HIG）：<https://developer.apple.com/design/human-interface-guidelines/materials>
+- Xcode 26 Release Notes：<https://developer.apple.com/documentation/xcode-release-notes/xcode-26-release-notes>
 - WebKit / WKWebView 文档：<https://developer.apple.com/documentation/webkit>
 - Swift Package Manager：<https://www.swift.org/documentation/package-manager/>
 - XcodeGen：<https://github.com/yonaskolb/XcodeGen>
