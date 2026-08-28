@@ -1,8 +1,8 @@
-# 新浪微博客户端（React Native 四平台）项目计划
+# 新浪微博客户端（iOS · Swift + SwiftUI）项目计划
 
-> 目标：用 React Native 构建一个微博客户端，代码绝大部分共享，一套仓库同时产出 **iOS / Android / macOS / Windows** 四个平台的应用。
+> 目标：用 **Swift + SwiftUI** 构建一个微博客户端，**仅 iOS 单平台**，不为多端预留任何设计约束。
+> 毛玻璃（Material）、原生转场、系统级导航这些平台能力是本栈的第一梯队资产，尽情用。
 >
-> 文档状态：v1 · 待评审
 > 交付物约定：每个里程碑（Mx）都有验收标准（DoD）与可勾选的任务清单。
 
 ---
@@ -11,22 +11,22 @@
 
 | 项 | 内容 |
 |---|---|
-| 产品形态 | 新浪微博第三方客户端（移动端 + 桌面端） |
-| 技术栈 | React Native（Bare）+ react-native-windows + react-native-macos |
-| 平台 | iOS、Android、macOS、Windows 10/11 |
-| 数据来源 | 微博开放平台 API（OAuth 2.0），受限接口见 §3 风险 |
-| 团队假设 | 1–2 名开发，全栈 RN |
-| 总工期估算 | 约 14–18 周（详见 §10） |
+| 产品形态 | 新浪微博第三方客户端（iOS） |
+| 技术栈 | Swift + SwiftUI（WKWebView 仅作登录与数据通道宿主）+ Swift Package Manager |
+| 平台 | iOS（最低 **iOS 26**，iPhone 11/SE2 起——XR/XS 已止步于 18，个人演示定位无碍） |
+| 数据来源 | **微博 Web 端接口**（无需开放平台申请；路线 B：隐藏 WKWebView 同源会话，见 D9；合规约束见 R1） |
+| 执行方式 | **AI 全量执行**（编码、测试脚手架、CI 配置）；人负责验收走查、真机操作与风控人工验证环节 |
 
 ### 1.1 产品目标（P0 = 首版必须，P1 = 首版尽量，P2 = 后续迭代）
 
+- [ ] 项目定位：**个人学习 / 开源演示**，仅 GitHub 分发，不上架商店、不商用、不批量抓取（路线 B 的合规前提，见 R1）
 - [ ] P0 能登录、看时间线、刷微博、发微博
 - [ ] P0 微博详情：正文、图片/视频、评论、转发、点赞
 - [ ] P0 个人主页：用户资料、微博列表、关注/取关
 - [ ] P1 搜索（微博/用户/话题）与热搜榜
 - [ ] P1 消息中心（@我、评论、转发通知）
-- [ ] P1 桌面端体验优化（键盘快捷键、多栏布局、菜单栏）
-- [ ] P2 私信、长文、视频直播、九宫格发布时间优化、小组件等
+- [ ] P1 SwiftUI 原生体验：毛玻璃导航栏/浮层（Material）、大图缩放转场、Dynamic Type
+- [ ] P2 私信、长文、视频直播、小组件（WidgetKit 顺手可做）等
 
 ---
 
@@ -36,42 +36,39 @@
 
 | # | 决策点 | 选择 | 理由 / 备选 |
 |---|---|---|---|
-| D1 | 脚手架 | **Bare React Native CLI**（`@react-native-community/cli`），不用 Expo | Expo 官方 SDK 不覆盖 `react-native-windows` / `react-native-macos` 目标；Bare 模式对四平台 target 控制最完整 |
-| D2 | 桌面端框架 | [react-native-windows](https://github.com/microsoft/react-native-windows/releases)（WinUI 3）+ [react-native-macos](https://github.com/microsoft/react-native-macos/releases) | 微软官方维护的 RN 平台扩展，与 RN core 同 minor 版本对齐发布（当前 RNW 已到 [v0.81+](https://devblogs.microsoft.com/react-native/react-native-windows-v0-81-is-here/)） |
-| D3 | 多平台组织 | 单仓单 App + **平台扩展文件**（`.ios.tsx` / `.android.tsx` / `.macos.tsx` / `.windows.tsx` / `.native.tsx`） | 简单直接；共享逻辑放 `src/`，平台壳工程各自独立 |
-| D4 | 新架构（Fabric/TurboModules） | 首版按 RNW/RN macOS 当前稳定支持情况决定，默认**先跑通旧架构兼容路径，新架构作为 spike** | 见 §3 R3；两桌面框架对 New Architecture 的支持节奏与 core 不同步 |
-| D5 | 导航 | React Navigation（JS Stack + Tabs），桌面端切换为**侧边栏导航**布局 | `react-native-screens`/native-stack 在 Windows 不可用，统一用 JS 实现保证四端一致 |
-| D6 | 状态与数据 | Zustand（UI 状态）+ TanStack Query（服务端数据）+ Axios | 轻量、纯 JS、无原生依赖，天然四平台兼容 |
-| D7 | UI 组件 | 自建薄组件层 + React Native Paper（可选主题层） | 避免依赖只支持手机端的组件库；桌面差异用扩展文件处理 |
-| D8 | 语言 | TypeScript 全覆盖 | — |
+| D1 | UI 栈 | **SwiftUI-first，UIKit 定点桥接** | 列表/导航/表单全 SwiftUI；WKWebView 宿主、个别交互（图片查看器手势）经 `UIViewRepresentable` 下沉 UIKit，不追求纯血；iOS 26 底零兼容包袱：Swift 6.2 严格并发、`@Observable`/NavigationStack/Liquid Glass 全量可用 |
+| D2 | 桌面端框架 | —（已废弃） | 原 react-native-macos；技术栈转 Swift 后连同"多平台"前提一并废弃 |
+| D3 | 多平台组织 | —（已废弃） | 原平台扩展文件；单平台单栈，不存在跨端分叉 |
+| D4 | 工程管理 | **XcodeGen（`project.yml` 文本定义）+ SPM 依赖** | 工程文件不手改 pbxproj，AI 可全量生成与 review；依赖走 SPM，无 CocoaPods |
+| D5 | 导航 | **SwiftUI `NavigationStack` + `TabView`**，Route 定义为 enum | 系统原生栈：大标题、滑动返回、contextMenu、`.searchable` 全部免费 |
+| D6 | 状态与数据 | **Observation（`@Observable`）+ URLSession + Repository 层**（分页/缓存/游标自研薄层） | Apple 官方观察框架，不引入大型三方状态库；服务端数据统一走 `APIWeb` Repository |
+| D7 | UI 组件 | 自建薄组件层（Cell/Avatar/RichText）+ **Liquid Glass 视觉层**（`.glassEffect` + `GlassEffectContainer`、`.buttonStyle(.glass)`、`glassEffectID` 形变转场；toolbar/tab bar 系统默认即玻璃） | 毛玻璃是系统语言而非自建效果；微博信息密度场景组件有限，自建成本低于选型内耗；视觉红利是换 Swift 的直接动机之一 |
+| D8 | 语言 | **Swift** 全覆盖 | 原 TypeScript；RN 时代的完整技术论证与代码记录在 git 历史 |
+| D9 | **数据通道（路线 B，原生化）** | 常驻**离屏 WKWebView** 保持已登录的 weibo.com 同源会话；双车道取数：**车道① 页面内 fetch**（`evaluateJavaScript` 注入，`WKScriptMessageHandlerWithReply` 结构化回传）用于业务读接口；**车道② 原生 URLSession**（经 `WKHTTPCookieStore` 同步 Cookie）主要用于**上传/发布**，亦用于不依赖页面上下文的轻量直发请求（如会话探测）。`Core/APIWeb` 保留后端抽象（`web/` 默认实现，`openapi/` 留位） | 免申请、免审核；相比 RN 路线的两大质变：**(a)** `WKHTTPCookieStore.getAllCookies` 原生可直接读 **httpOnly** 的 `SUB`/`XSRF-TOKEN`，不再依赖"页面脚本能读到"这个未证假设；**(b)** CORS 只是浏览器安全模型，**URLSession 上传天然不受限**，只需按服务端校验补齐 Referer/Origin 头。代价不变 = 风控长期维护（R1）+ WebView 常驻内存 |
 
 ### 2.2 仓库结构（规划）
 
 ```
 my-weibo-app/
-├── index.js                    # 单一入口，注册 AppRegistry（含 Desktop_app 注册）
-├── package.json                # 依赖四平台框架与 scripts（ios/android/macos/windows）
-├── ios/                        # RN iOS 工程（CocoaPods）
-├── android/                    # RN Android 工程（Gradle）
-├── macos/                      # react-native-macos 工程（Xcode + CocoaPods）
-├── windows/                    # react-native-windows 工程（VS2022 + MSBuild）
-│   └── MyWeiboApp/
-├── src/
-│   ├── app/                    # App 组装：导航容器、主题、Provider
-│   ├── features/               # 按功能域切分
-│   │   ├── auth/               # 登录、OAuth 回调、token 管理
-│   │   ├── timeline/           # 关注/推荐时间线
-│   │   ├── compose/            # 发布微博（文字/图片/话题/位置）
-│   │   ├── detail/             # 微博详情、评论、转发、点赞
-│   │   ├── profile/            # 用户主页、关注列表
-│   │   ├── search/             # 搜索、热搜
-│   │   └── notifications/      # 消息中心
-│   ├── api/                    # 微博 API 客户端、DTO、签名/授权拦截器
-│   ├── components/             # 共享 UI 组件（Cell、Avatar、RichText…）
-│   │   └── *.windows.tsx       # 平台差异用扩展文件覆盖
-│   ├── desktop/                # 桌面专属：菜单栏、快捷键、多栏布局
-│   ├── stores/  hooks/  utils/  assets/  theme/
-└── __tests__/  scripts/  docs/
+├── project.yml                 # XcodeGen 工程定义（pbxproj 为生成产物）
+├── Sources/
+│   ├── App/                    # @main、TabView 壳、导航 Route、Theme、DI 组装根
+│   ├── Features/               # 按功能域切分
+│   │   ├── Auth/               # 登录（WKWebView 扫码）、会话检测、登出
+│   │   ├── Timeline/           # 关注/推荐时间线
+│   │   ├── Compose/            # 发布微博（文字/图片/话题）
+│   │   ├── Detail/             # 微博详情、评论、转发、点赞
+│   │   ├── Profile/            # 用户主页、关注列表
+│   │   ├── Search/             # 搜索、热搜
+│   │   └── Notifications/      # 消息中心
+│   ├── Core/
+│   │   ├── WebViewChannel/     # 离屏 WKWebView 宿主、双车道、限流 actor、风控降级
+│   │   ├── APIWeb/             # Web 端点定义、DTO、分页游标（改版只动这里）
+│   │   ├── Store/              # 偏好/草稿/搜索历史 KV（凭证永不落 App 存储）
+│   │   └── UI/                 # 共享组件 + Material 视觉层
+│   └── Resources/              # Assets.xcassets / Localizable
+├── Tests/                      # XCTest：单元 + 契约快照
+├── Scripts/  docs/
 ```
 
 ---
@@ -80,21 +77,21 @@ my-weibo-app/
 
 | # | 风险 | 影响 | 缓解措施 |
 |---|---|---|---|
-| **R1** | **微博开放平台 API 权限收紧**：多数时间线/搜索接口需要应用审核与接口权限申请，个人开发者可申请的权限非常有限（参考 [微博开放平台](https://open.weibo.com/wiki/Mainpage)） | 高：可能拿不到 `statuses/home_timeline`、`search/topics` 等 | ① 立项第一周就提交应用注册 + 权限申请；② 用自有的"测试用户"账号验证全链路；③ 设计 API 抽象层，允许后续替换数据源；④ 明确不做爬虫方案（合规风险），若 API 不可得则调整为"演示版"范围 |
-| **R2** | OAuth 回调需要 https 域名 / App Link | 中 | 准备一个自有域名的回调页（静态托管即可）；移动端用 `react-native-navigation` deep link / App AuthSession |
-| **R3** | 新架构（0.76+ Fabric 默认）与 RNW / RN macOS 的支持节奏不完全同步，部分三方库未适配 | 中 | M0 阶段做一次**四平台空工程 spike**，锁定一个四端全对齐的 RN minor 版本再大规模开发 |
-| **R4** | 三方库平台覆盖不全（图片库、secure storage、键盘管理、列表优化等大多只支持 iOS/Android） | 中 | 每个依赖先过 §7 的"依赖准入矩阵"；桌面端回退到官方组件 + JS 实现 |
-| **R5** | Windows 端开发必须 Windows 环境（VS2022 C++ 工作负载），macOS 端需要能跑 Xcode 的机器 | 中 | 团队机器盘点；CI 矩阵补位（见 §8） |
-| **R6** | 长列表 + 富文本 + 图片在桌面端性能表现未经检验 | 中 | M2 结束前做 1k 条时间线滚动压测，四端记录 FPS |
-| **R7** | 微博内容合规（展示第三方内容上线应用商店） | 低–中 | 首版定位个人/开源项目分发，不上架中国区商店；上线前复查商店与开放平台条款 |
+| **R1** | **Web 接口属未授权通道**：违反微博用户协议（禁止自动化方式未授权访问）；风控随时升级——432 限频、滑块、字段变更是常态（参见 [weibo-crawler 的 432 实例](https://github.com/dataabc/weibo-crawler/issues/565)） | 高（合规）/ 中（工程） | ① 定位个人开源演示：**不上架、不商用、不批量抓取/存库**；② 全局限流（间隔 ≥1s、并发 ≤2，用 actor 实现）+ 缓存，新鲜度让位于低调；③ 触发风控时唤起可见 WKWebView 让用户人工验证后自动重放；④ 端点全部收敛在 `Core/APIWeb/`，改版只动一处；⑤ README 显著位置放免责声明 |
+| **R2** | Web 会话维护：扫码登录、Cookie 过期、多端登录互踢 | 中 | 登录统一在嵌入式 WKWebView 人工完成（App 不碰账密/加密参数）；请求命中 401/跳登录页即自动唤起重新登录；会话持久化依赖 `WKWebsiteDataStore.default()`，模拟器与真机分别实测 |
+| **R6** | 长列表 + 富文本 + 图片在老款 iPhone 上性能未经检验（SwiftUI List/LazyVStack 海量图文的回收与解码抖动） | 低–中 | M2 结束前做 1k 条时间线滚动压测（Instruments + 真机帧率） |
+| **R7** | 路线 B 地基在**原生语境**下重述，四个待证点：① 离屏/隐藏的 WKWebView 是否被挂起（原生已知解法：入屏 1×1 视图或独立 UIWindow，需实测）；② 页面内 fetch 经消息桥回传在 App 前后台切换/锁屏恢复后的存活；③ `WKHTTPCookieStore` 读到含 httpOnly 的 `SUB`/`XSRF-TOKEN` 并成功附带；④ 原生 URLSession 直传上传域名时服务端的 Referer/Origin/参数校验行为 | 中（原 RN 时代为高：①②是原生成熟技巧，③④相比"JS 能否读到 httpOnly"与"页面内 fetch 撞 CORS"根本是确定性提升）| M0 首个 spike 四项判据全过才算通过；失败处置：①②失败→常驻可见层级小窗；③失败→回车道①（页面内取数含附带）；④失败→上传/发布改走可见 WKWebView 内完成 |
+
+> 注：R3（RN ↔ RN macOS 版本对齐）已随 macOS 平台移除、R4（三方库跨端覆盖）已收缩进 §7、R5 已随 Windows 平台移除；RN 整体时代的通道与架构风险随技术栈切换一并退场——编号有意不回排，以保持 R6/R7 引用稳定；D2/D3、M8 同理。
 
 **开工前核对：**
 
-- [ ] 已注册微博开放平台开发者账号，创建应用拿到 `App Key / App Secret`
-- [ ] 已确认目标 App 可申请的接口清单（登录、时间线、发布、评论、点赞、关注、搜索）
-- [ ] 已准备 OAuth 回调域名/页面
-- [ ] 已盘点开发机：Mac（Xcode ≥ 15）× 1、Windows 11（VS2022）× 1、iOS/Android 真机各 1
-- [ ] 已通过 spike 锁定 RN core / RNW / RN macOS 三者对齐的版本号，记录到 `docs/VERSIONS.md`
+- [ ] 项目定位确认：个人学习/开源演示，GitHub 分发，不上架、不商用、不批量抓取
+- [ ] 已通读微博用户协议相关条款，README 免责声明文案备好
+- [ ] 个人微博账号 Web 端扫码登录正常，作为开发验证账号
+- [ ] **路线 B 原生 spike 通过，覆盖 R7 全部四项判据**（隐藏常驻/桥回传存活/Cookie 直读/上传校验）（M0 首项）
+- [ ] 已盘点设备：Mac（Xcode ≥ 26，Swift 6.2）× 1、iPhone 真机 × 1（已升 iOS 26+）
+- [ ] Xcode / Swift / 最低 iOS 版本记录到 `docs/VERSIONS.md`
 
 ---
 
@@ -102,157 +99,135 @@ my-weibo-app/
 
 ### 4.1 通用
 
-- [ ] Node LTS（与 RN CLI 要求匹配）+ Corepack/Yarn
-- [ ] React Native DevTools / `npx react-native doctor` 全绿
-- [ ] Git 仓库初始化 + `.gitignore`（四平台构建产物）
-- [ ] 编辑器配置：TS、ESLint、Prettier 统一
+- [ ] Xcode 26（Swift 6.2）+ Command Line Tools（宿主 macOS 版本按 [Xcode 系统要求](https://developer.apple.com/xcode/system-requirements/) 核对）
+- [ ] XcodeGen 安装（`brew install xcodegen`）+ `project.yml` 跑通
+- [ ] SwiftLint + SwiftFormat 配置并接入 pre-commit
+- [ ] Git 仓库初始化 + `.gitignore`（构建产物、生成的 xcodeproj）
 
 ### 4.2 iOS
 
-- [ ] Xcode + Command Line Tools + CocoaPods + Watchman
-- [ ] 模拟器运行 Hello World 成功
-- [ ] 真机签名（开发者账号）配置完成
-
-### 4.3 Android
-
-- [ ] Android Studio：SDK 平台、Build-Tools、NDK（按 RN 要求）、`ANDROID_HOME`
-- [ ] JDK 版本与 AGP 匹配
-- [ ] 模拟器 + 真机（`adb`）运行 Hello World 成功
-
-### 4.4 macOS（react-native-macos）
-
-- [ ] 按 [RN macOS Getting Started](https://github.com/microsoft/react-native-macos/wiki/Intro-vs-%22*-native%22-projects) 初始化 macos 目录（`npx react-native-macos-init`）
-- [ ] `pod install`（macos 目录）成功
-- [ ] Xcode 运行 `MyWeiboApp (macOS)` Scheme 成功，窗口可缩放
-- [ ] 确认 debug 端口（8081 metro）与 iOS 共存方式
-
-### 4.5 Windows（react-native-windows）
-
-- [ ] VS2022：`.NET 桌面开发` + `C++ 桌面开发` + `Windows 10/11 SDK` + `MSIX 打包负载`
-- [ ] Node 工具链 + `npx react-native-windows-init`（目标 RN 版本与 D4 决策一致）
-- [ ] `npx react-native run-windows` 首次构建通过（注意首次需较长编译时间，建议 Release/Debug 各验证一次）
-- [ ] Windows App SDK / WinUI 运行时部署确认
+- [ ] 模拟器运行 SwiftUI Hello World 成功
+- [ ] 真机签名（开发者账号）配置完成，能装能调试
+- [ ] 目标真机已升级 iOS 26+（Liquid Glass 生效的前提；最低 iPhone 11/SE2）
 
 ---
 
 ## 5. 架构基线 Checklist（M0 出口条件）
 
-- [ ] `npx @react-native-community/cli init` 生成基础工程，四平台壳工程全部可启动
-- [ ] `package.json` scripts：`start` / `ios` / `android` / `macos` / `windows` 一键可用
-- [ ] `index.js` 中 `AppRegistry.runApplication` 对桌面 target（`macos`/`windows` appKey）注册正确，四端渲染同一 `<App/>`
-- [ ] TypeScript 严格模式 + 路径别名 `src/*`
-- [ ] 平台扩展机制验证：一个示例组件在 4 端分别渲染不同文案，确认解析顺序
-- [ ] 主题系统：light/dark 四端跟随系统；桌面端窗口宽度断点（<600 单栏、600–1000 双栏、>1000 三栏）
-- [ ] 网络层：Axios 实例 + token 拦截器 + 统一错误模型 + 请求重试
-- [ ] 存储层封装：KV（`@react-native-async-storage/async-storage`，四端可用）；安全存储接口 `SecureTokenStore`（iOS/Android/macOS 用 Keychain 系方案，Windows 用 CredentialLocker，接口统一、平台实现分离）
-- [ ] 日志与崩溃上报占位（Sentry 四端支持情况需 spike 验证）
-- [ ] 导航容器：移动端 Bottom Tabs，桌面端 Side Nav（同一 Route 定义复用）
-- [ ] ESLint + Prettier + Husky（pre-commit）+ `jest` 空跑通
-- [ ] `docs/ARCHITECTURE.md` 记录 D1–D8 决策与理由
+> 边界：通道类条目（WebViewChannel / 风控降级）在本节**只定样并用 spike 级实现验证 R7 判据**（可抛弃代码），生产实现归 M1；其余基线条目直接生效。各阶段出口条件以 §10 为准。
+
+- [ ] `xcodegen generate` → 工程打开即跑，模拟器/真机启动同一 App
+- [ ] SPM 依赖锁定：版本约束声明在 `project.yml`（生成的 `*.xcodeproj` 不入库，其内 `Package.resolved` 随之失效，约束必须落在文本定义里），无 CocoaPods 残留
+- [ ] `Core/WebViewChannel` **协议与错误模型定样**：`WebViewChannel { func fetch(_:) async throws -> Data }`，`APIError` enum 含 `.punished` case；M0 以双车道 spike 实现跑通 R7 判据即可，生产实现（含**限流 actor**：间隔 ≥1s、并发 ≤2，超时/重试）见 M1
+- [ ] 风控降级链路**方案定样**（识别 punish/验证码响应 → 唤起可见 WKWebView 人工验证 → 自动重放失败请求）；实现归 M1
+- [ ] `Core/APIWeb`：端点注册表 + DTO（`Codable`）骨架，`openapi/` 留位
+- [ ] 存储层：偏好/草稿/搜索历史 KV 封装；**登录凭证不落 App 存储**（Cookie 只存在于系统 WebKit CookieJar）
+- [ ] 日志 `os.Logger` 按子系统分域 + Sentry 占位
+- [ ] 导航壳：`TabView` + 各 tab 内 `NavigationStack`，集中 Route enum
+- [ ] 主题：`Color` 资源 + light/dark 跟随系统；Liquid Glass 基础层定样（玻璃浮层容器、`.buttonStyle(.glass)`、"降低透明度"无障碍模式下的回退观感）
+- [ ] 测试基建：XCTest target 空跑通 + CI lint/typecheck/test
+- [ ] `docs/ARCHITECTURE.md` 记录 D1–D9 决策与理由（含废弃项说明）
 
 ---
 
 ## 6. 功能里程碑
 
-### M1 · 登录与账号（约 1.5 周）
+> M0（环境与架构基线）见 §4/§5，本节不重复；各阶段出口条件汇总在 §10。
 
-依赖：R1/R2 前置项完成。
+### M1 · 登录与会话
 
-- [ ] OAuth 2.0 授权流程：`useAuthSession`（或 Linking 打开系统浏览器）→ 回调 → 换 `access_token`
-- [ ] Token 持久化 + 过期刷新（refresh_token）+ 失效重登
-- [ ] 登录页 UI（移动端全屏 / 桌面端居中卡片），四端走查
-- [ ] "以 XX 身份登录"的全局账号状态（Zustand store）
-- [ ] 退出登录、清除凭证
-- [ ] 深链接回调在四端分别验证（含 Windows URL 协议注册）
-- [ ] DoD：四端均可完成登录 → 重启 App 保持会话 → 登出
+依赖：M0 的路线 B spike（R7）通过。
 
-### M2 · 时间线（约 2 周）
+- [ ] `WebViewChannel` 生产实现（§5 定样协议/错误模型的落地）：常驻离屏 WKWebView（保持 weibo.com 源）、`evaluateJavaScript` 注入 fetch + `WKScriptMessageHandlerWithReply` 回传（请求 ID ↔ 回包关联）、**限流 actor**（间隔 ≥1s、并发 ≤2）+ 超时/重试；风控降级链路实现；隐藏态/前后台切换/锁屏恢复存活实测通过（R7 判据①②）
+- [ ] 登录窗口：sheet 内嵌可见 WKWebView 打开微博**扫码登录页**，用户人工完成（含滑块/短信验证），App 全程不接触账密
+- [ ] 会话检测：轻量端点探测登录态（原生车道带 Cookie 直发）；过期自动唤起重新登录
+- [ ] Cookie 同步：`WKHTTPCookieStore` 读取（含 httpOnly）→ 注入 `HTTPCookieStorage.shared`，原生车道自动携带（R7 判据③）
+- [ ] "当前账号"全局状态（`@Observable` UserSession）
+- [ ] 退出登录：登出 + `WKWebsiteDataStore.default().removeAllData()`
+- [ ] 重启后会话恢复验证（系统 CookieJar 持久化，模拟器 + 真机实测）
+- [ ] DoD：扫码登录 → 重启保持会话 → 登出后需重新登录
 
-- [ ] API 层：`statuses/friends_timeline`（关注）+ 未登录/降级数据源占位
-- [ ] 微博 Cell 组件：头像、昵称、认证标识、时间（相对时间）、来源、正文（含 @/话题/链接富文本渲染）、配图九宫格
-- [ ] 下拉刷新 + 无限滚动分页（`max_id` 游标）
-- [ ] 图片查看器（全屏、缩放、翻页）——平台兼容矩阵验证后选型
-- [ ] 视频卡片（内联预览 + 点击进入播放；播放器四端支持是难点，允许 M2 降级为外链播放）
-- [ ] 长列表性能：滚动 1k 条记录四端帧率，优化到 ≥ 50fps
+### M2 · 时间线
+
+- [ ] 数据层：关注时间线 Web 端点封装（weibo.com ajax 为主、m.weibo.cn container 兜底，端点以实测为准并全部收敛在 `Core/APIWeb/`）+ 未登录空态
+- [ ] 节流与缓存落地：限流 actor 生效、Repository 层 staleTime + 磁盘缓存（**降低风控触发概率优先于数据新鲜度**）
+- [ ] 微博 Cell 组件：头像、昵称、认证标识、时间（相对时间）、来源、正文（@/话题/链接富文本，`AttributedString` 分段着色可点击）、配图九宫格
+- [ ] 下拉刷新 + 无限滚动分页（游标参数以 Web 端点实测为准）
+- [ ] 图片加载 spike：`wx*.sinaimg.cn` 是否需要伪造 Referer、Kingfisher/`AsyncImage` 自定义请求头实测（与 §7 图片库验证合并）
+- [ ] 图片查看器（全屏、缩放、翻页；`matchedGeometryEffect` 列表→详情转场）
+- [ ] 视频卡片（内联预览 + 点击进入播放，`VideoView`（AVKit，iOS 26 SwiftUI 原生））
+- [ ] **Liquid Glass 落地**：浮动发博按钮 `.glassEffect` + `GlassEffectContainer` 统一渲染（相邻玻璃自动融合）；玻璃↔全屏图片的 `glassEffectID` 形变转场；toolbar/tab bar 系统默认液态玻璃在各滚动边缘行为走查
+- [ ] 长列表性能：滚动 1k 条记录，iPhone 真机 ≥ 50fps（Instruments 定位解码抖动，图片降采样）
 - [ ] 骨架屏与空态/错误态
-- [ ] DoD：四端流畅刷微博，转发微博与图片时间线渲染正确
+- [ ] DoD：真机流畅刷微博，转发微博与图片时间线渲染正确
 
-### M3 · 发布微博（约 1.5 周）
+### M3 · 发布微博
 
-- [ ] 发布编辑器：正文输入（140/长文提示）、计数
-- [ ] 图片选择与多选上传（相册权限：iOS/Android；macOS 用 NSOpenPanel 桥接、Windows 用 FileOpenPicker 桥接——平台扩展文件实现）
+- [ ] 发布编辑器：正文输入（140/长文提示）、计数、键盘工具栏
+- [ ] 图片选择：`PhotosPicker`（系统选择器，免相册权限读图）+ 多选
+- [ ] 上传走**原生车道②**：URLSession multipart + 同步的 Cookie + Referer/Origin 补全（R7 判据④实测为准）；失败预案 = 上传/发布改走可见 WKWebView 内完成
 - [ ] 话题 #xx# 插入、@ 好友（可选 P1）
-- [ ] 发送中状态、失败重试、草稿本地保存
+- [ ] 发送中状态、失败重试、草稿本地保存（Store 层）
 - [ ] 发布成功后时间线插入新条目
-- [ ] DoD：四端能发纯文本 + 带图微博并立即可见
+- [ ] DoD：能发纯文本 + 带图微博并立即可见
 
-### M4 · 详情与互动（约 2 周）
+### M4 · 详情与互动
 
 - [ ] 微博详情页：原文全文、话题链接、来源、发布时间绝对值
 - [ ] 评论列表（分页）+ 发评论 + 评论回复楼
 - [ ] 转发（直接转发 + 带意见转发）
-- [ ] 点赞/取消点赞（乐观更新）
-- [ ] 长按/右键操作菜单（**桌面端为鼠标右键 ContextMenu**，用扩展文件实现）
+- [ ] 点赞/取消点赞（乐观更新，失败回滚）
+- [ ] 长按操作菜单：系统 `.contextMenu`（转发/评论/点赞/复制/收藏/分享）
 - [ ] 收藏（若 API 可得，否则记 P2）
 - [ ] DoD：从时间线进入详情，完成一次"评论 + 转发 + 点赞"闭环
 
-### M5 · 用户主页与关注（约 1.5 周）
+### M5 · 用户主页与关注
 
-- [ ] 个人主页：资料卡（头像/简介/粉丝/关注数/微博数）、微博列表、更多列表（图片/视频 tab）
+- [ ] 个人主页：资料卡（头像/简介/粉丝/关注数/微博数）、微博列表、更多列表（图片/视频 tab，`TabView(.page)`）
 - [ ] 关注 / 取关（乐观更新 + 回滚）
 - [ ] 我的主页 + 编辑资料入口（P1）
 - [ ] 他人主页的重定向（短链 `weibo.cn` 解析，P1）
 - [ ] DoD：从任意微博可跳到作者主页并关注/取关
 
-### M6 · 搜索与热搜（约 1.5 周）
+### M6 · 搜索与热搜
 
-- [ ] 搜索页：微博/用户/话题 三个 tab（受 R1 权限影响，至少落地本地可得的方案）
-- [ ] 热搜榜（`common/get_hotflow` 或可得接口）+ 点击进搜索结果
-- [ ] 搜索历史（本地存储）、防抖请求、竞态取消
-- [ ] 桌面端搜索快捷键（⌘K / Ctrl+K）
-- [ ] DoD：四端可搜索并分页展示结果
+- [ ] 搜索页：微博/用户/话题 三个 tab，`.searchable` 修饰符 + 提交/取消语义
+- [ ] 热搜榜（Web 端侧边热搜数据）+ 点击进搜索结果
+- [ ] 搜索历史（本地存储）、防抖请求、`.task(id:)` 竞态取消
+- [ ] DoD：可搜索并分页展示结果
 
-### M7 · 消息中心（约 1.5 周，P1）
+### M7 · 消息中心（P1）
 
-- [ ] 三类通知列表：@我、评论、转发（未读角标）
+- [ ] 三类通知列表：@我、评论、转发（未读角标 `badge`）
 - [ ] 点击进入对应微博并高亮锚点
-- [ ] 私信：开放平台 API 已不开放 → **明确降级为"跳官方客户端/网页"**，避免踩线
-- [ ] 下拉刷新 + 轮询未读数（App 前台时）
+- [ ] 私信：Web 聊天接口实现成本高且敏感 → 首版仍降级为"跳网页版"，P2 再评估
+- [ ] 下拉刷新 + 轮询未读数（App 前台时，场景相位驱动）
 - [ ] DoD：收到 @ 与评论后消息页可见，跳转正确
 
-### M8 · 桌面端专项打磨（约 2 周，与 M6/M7 部分并行）
+### M8 ·（已废弃）
 
-- [ ] macOS 菜单栏（Menu）：常用动作（发微博、刷新、搜索）绑定应用菜单
-- [ ] Windows 菜单/命令栏 + 标题栏区域适配
-- [ ] 键盘快捷键体系：`⌘/Ctrl+R` 刷新、`⌘/Ctrl+,` 设置、`Esc` 返回、`J/K` 上下切换微博（可选）
-- [ ] 鼠标交互：hover 态、滚轮滚动、右键菜单、文本可选可复制
-- [ ] 多栏布局：左导航 + 中列表 + 右详情（主从视图），窗口缩放自适应
-- [ ] 窗口最小尺寸与多窗口行为验证
-- [ ] 设置页：主题、字号、网络图片策略、清缓存
-- [ ] DoD：桌面两端达到"愿意日常使用"的基本体验，截图评审通过
+> M8 原为桌面端专项打磨（macOS），随平台与技术栈移除而废弃；保留编号以稳定 M9 与 §10 的引用。
 
-### M9 · 质量与发布（约 2 周，见 §8/§9）
+### M9 · 质量与发布
+
+- [ ] 执行 §8.1 测试、§8.2 CI/CD、§8.3 发布通道全部条目，DoD 见 §9
 
 ---
 
-## 7. 依赖准入矩阵（引入任何三方库前填一行）
+## 7. 依赖清单（Swift 工程：能少则少，系统优先）
 
-| 库 | iOS | Android | macOS | Windows | 结论/回退 |
-|---|---|---|---|---|---|
-| react-native (core) | ✅ | ✅ | — | — | 基准版本锁 `docs/VERSIONS.md` |
-| react-native-macos | — | — | ✅ | — | 与 core 同 minor |
-| react-native-windows | — | — | — | ✅ | 与 core 同 minor |
-| @react-navigation/native + elements(JS) | ✅ | ✅ | ✅ | ✅ | 已验证四端纯 JS 可用 |
-| @react-native-async-storage/async-storage | ✅ | ✅ | ✅ | ✅ | 官方支持 |
-| zustand / @tanstack/query / axios | ✅ | ✅ | ✅ | ✅ | 纯 JS |
-| react-native-keychain | ⚠️ 待验证 | ⚠️ | ⚠️ | ❌ | 抽象 `SecureTokenStore`；Windows 用 WinRT CredentialManager |
-| expo-image / fast-image | ⚠️ | ⚠️ | ⚠️ | ⚠️ | spike 验证，失败则 RN `Image` + 手动缓存 |
-| react-native-gesture-handler | ⚠️ | ⚠️ | ⚠️ | ❌/⚠️ | 移动端图片查看器可用；桌面端回退 JS PanResponder |
-| react-native-webview | ✅ | ✅ | ⚠️ | ✅ | 登录 H5/富文本兜底；macOS 需验证 |
-|（新库按需追加）| | | | | |
+| 库 | 用途 | 结论/备注 |
+|---|---|---|
+| WKWebView / URLSession / AVKit | 通道、网络、播放 | 系统自带，零依赖 |
+| Kingfisher | 图片加载 + 缓存 + 自定义请求头 | M2 spike 与 Referer 实测一起定；失败退 `URLSession` 手写缓存 |
+| swift-snapshot-testing | 端点契约快照 + 关键视图快照 | 微博改字段第一时间发现 |
+| Sentry Cocoa SDK | 崩溃与日志上报 | 占位即可，遵守"日志不含凭证"红线 |
+| KeychainAccess（或原生 Security） | — | 路线 B 下基本不需要（凭证留在 WebKit CookieJar）；仅存其他敏感信息时再引 |
+| swiftlint / swiftformat | 静态检查与格式化 | 工具链，不进包体 |
+|（新库按需追加）| | |
 
-- [ ] 每行状态在 M0 spike 中实测更新，不允许"未验证直接引入"
-- [ ] 所有 ⚠️/❌ 项都有接口抽象 + 桌面回退实现
+- [ ] 准入三问：系统能力是否覆盖？是否可被 20 行薄封装替代？维护活跃度与 SPM 支持如何？
+- [ ] 所有网络入口收敛到 `WebViewChannel` 协议，任何库不得绕行限流器直接发请求
 
 ---
 
@@ -260,69 +235,71 @@ my-weibo-app/
 
 ### 8.1 测试
 
-- [ ] 单元测试：API 层、stores、utils（目标行覆盖 ≥ 70%）
-- [ ] 组件测试：`@testing-library/react-native` 覆盖核心 Cell/详情页
-- [ ] Mock：MSW（Mock Service Worker）模拟微博 API 契约，四端共用
-- [ ] E2E（P1）： Maestro 覆盖移动端登录→刷→发主链路
-- [ ] 手工回归矩阵：4 平台 × 6 关键流程，每次发版执行
-- [ ] 桌面专项：窗口缩放、键盘全操作可达性走查
+- [ ] 单元测试：`APIWeb` DTO 解码、限流 actor（间隔/并发/退避/去重）、Repository 分页游标、Store 层（目标行覆盖 ≥ 70%）
+- [ ] 视图测试：关键 View 的编译期构造 + snapshot-testing 视觉回归（Cell、详情页）
+- [ ] Mock：以 `WebViewChannel` 协议为注入边界做 fake（回放 Web 端点契约 JSON），UI 测试不依赖真微博
+- [ ] 契约快照测试：关键端点响应留快照，微博改字段第一时间发现
+- [ ] E2E（P2）：XCUITest 覆盖登录→刷→发主链路（模拟器稳定性一般，主回归靠单测 + 手工矩阵）
+- [ ] 手工回归：6 关键流程，每次发版在 iPhone 真机全量执行 + 模拟器冒烟
+- [ ] 机型矩阵：最新款 + 一代老款 iPhone（含小屏 SE 类）走查一遍
+- [ ] 性能专项：1k 条滚动帧率 + 内存水位（图片解码降采样验证）、冷启动 < 2s
 
-### 8.2 CI/CD（GitHub Actions 矩阵）
+### 8.2 CI/CD（GitHub Actions）
 
-- [ ] PR 门禁：lint + typecheck + 单测
-- [ ] `ios.yml`：pod install + 模拟器构建（fastlane）
-- [ ] `android.yml`：assembleDebug/Release（APK + AAB）
-- [ ] `macos.yml`：runner 上 Xcode 构建 .app，签名后打包（可选 notarization）
-- [ ] `windows.yml`：VS2022 runner，MSBuild + MSIX 打包
+- [ ] PR 门禁：swiftlint + swiftformat --lint + 编译 + 单测（macos runner 上 `xcodebuild test`）
+- [ ] `ios.yml`：xcodegen → 模拟器构建（iOS 26 runtime，iPhone + SE 类小屏各一）→ 跑契约快照
 - [ ] 版本与 Changelog 自动化（semantic-release 或手动 tag）
-- [ ] 制品归档：四平台产物统一落到 Release 页
+- [ ] 制品归档：`.ipa`/`.app` 构建产物落到 Release 页
 
 ### 8.3 发布通道
 
-- [ ] iOS：TestFlight（Apple 开发者账号）
-- [ ] Android：apk 直发 / GitHub Releases；（若上架国内商店需另行合规评估）
-- [ ] macOS：直接分发 .dmg（本地签名）+ notarization
-- [ ] Windows：MSIX / GitHub Releases 安装包，代码签名证书（P1，可先无签名 + 使用说明）
+- [ ] iOS：本机自签分发（Xcode 签名，免费账号 7 天重签；日常主力机使用时建议付费开发者账号，签名有效期 ≥1 年），README 附"clone → xcodegen → 运行"三步说明。**不用 TestFlight**——外部测试组需过 App Store Connect Beta 审核，与 §1.1"不上架"及 R1 低调姿态冲突（内部测试组虽免审核，但对单人演示无增益）；仅限直连设备安装
+- 注：分发完全锁在 Apple 签名体系内；历史上多端（Android 最廉价分发、macOS 共享 Darwin）与 RN 方案的完整论证见 git 历史
 
 ---
 
 ## 9. 验收标准（整体 DoD）
 
-- [ ] 四个平台首版安装包均可在干净环境（CI 产物）安装运行
-- [ ] M1–M5 全部 P0 功能四端走查通过，截图/录屏留档到 `docs/reviews/`
-- [ ] 冷启动：移动端 < 2s、桌面端 < 3s（基准设备）
-- [ ] 时间线滚动 ≥ 50fps（中端设备 + Win11 笔记本 + M 系列 Mac）
+- [ ] iOS 首版安装包可在干净环境（clone + xcodegen + 签名，或 CI 产物）安装运行
+- [ ] M1–M5 全部 P0 功能真机走查通过，截图/录屏留档到 `docs/reviews/`
+- [ ] 冷启动 < 2s（基准机型）；时间线滚动 ≥ 50fps（iPhone 真机）
+- [ ] Liquid Glass（toolbar/发博按钮/浮层）在 light/dark 与"降低透明度"模式下渲染正确，无滚动抖动
 - [ ] 崩溃率：内部测试期无阻断性崩溃；离线/弱网有明确降级 UI
-- [ ] Token 等敏感信息不落地明文（四端验证）
-- [ ] `README.md` 含四端从零跑起来的一句话命令；`docs/ARCHITECTURE.md`、`docs/VERSIONS.md` 与实现一致
+- [ ] 登录凭证仅存于系统 WebKit CookieJar；App 自有存储与日志中无任何 Cookie/凭证
+- [ ] README 显著位置含免责声明与使用限制（个人学习用途、低频访问、尊重服务器），与 R1 缓解措施一致
+- [ ] `README.md` 含从零跑起来的一句话命令；`docs/ARCHITECTURE.md`、`docs/VERSIONS.md` 与实现一致
 - [ ] 已知限制清单（如私信降级、部分接口权限）在 README 显著位置声明
 
 ---
 
-## 10. 里程碑排期（1–2 人）
+## 10. 里程碑顺序与出口条件
 
-| 阶段 | 内容 | 工期 | 出口条件 |
-|---|---|---|---|
-| M0 | 环境与架构基线（§4、§5、§7 spike） | 1.5 周 | 四端 Hello World + 版本锁定 + 依赖矩阵 |
-| M1 | 登录与账号 | 1.5 周 | 四端登录闭环 |
-| M2 | 时间线 | 2 周 | 四端刷微博 + 性能达标 |
-| M3 | 发布微博 | 1.5 周 | 四端发文闭环 |
-| M4 | 详情与互动 | 2 周 | 评论/转发/点赞闭环 |
-| M5 | 主页与关注 | 1.5 周 | 关注闭环 |
-| M6 | 搜索与热搜 | 1.5 周 | 搜索可用（视 R1 权限） |
-| M7 | 消息中心 | 1.5 周 | 通知列表可用 |
-| M8 | 桌面打磨 | 2 周（可与 M6/7 并行） | 桌面体验走查通过 |
-| M9 | 测试收尾、CI/CD、四端发布 | 2 周 | §9 全部通过 |
-| **合计** | | **约 15–18 周（并行后 ≈ 14 周）** | |
+> 本计划不附工期估算：执行主体为 AI，瓶颈在**验收吞吐与外部依赖**（微博风控行为、接口改版、扫码/滑块与真机走查等人工环节），周数估算没有意义。要紧的是推进顺序与出口条件——顺序仍然重要，因为下游里程碑依赖上游的通道基座与实证结论。
 
-> 关键路径：M0 的 API 权限确认（R1）与版本对齐 spike（R3）。二者任一失败都应在 M0 结束时触发范围评审，而不是带病进入 M1。
+| 阶段 | 内容 | 出口条件 |
+|---|---|---|
+| M0 | 环境与架构基线（§4、§5、§7 spike） | Hello World 双环境可跑 + 版本锁定 + 依赖清单 + **R7 四项判据全过** |
+| M1 | 登录与会话（WebViewChannel 生产实现） | 扫码登录 + 双车道稳定（含限流 actor 与风控降级）+ 会话重启恢复 |
+| M2 | 时间线 | 真机刷微博 + 性能达标 + 毛玻璃导航落地 |
+| M3 | 发布微博 | 发文（含图）闭环 |
+| M4 | 详情与互动 | 评论/转发/点赞闭环 |
+| M5 | 主页与关注 | 关注闭环 |
+| M6 | 搜索与热搜 | 三 tab 搜索 + 热搜可用 |
+| M7 | 消息中心（P1） | 通知列表可用 |
+| M8 | （已废弃，保留编号） | — |
+| M9 | 测试收尾、CI/CD、发布 | §9 全部通过 |
+
+> 关键路径：M0 的**路线 B 原生 spike（R7）**仍是全局地基，但风险已从"高"降到"中"——隐藏 WebView 常驻、Cookie 直读、原生上传都是有大量先例的原生技巧，不像 RN 时代隔着 JS 桥赌两个未证假设。任一判据失败按 R7 缓解列逐项处置，必须在 M0 收尾时定案，不带病进入 M1。AI 执行下 spike 本身跑得很快，但登录扫码、滑块验证、真机走查是天然的人工环节，**验收排队可能取代编码成为新瓶颈**，每个里程碑 DoD 应设计成可一次性批量验收的形态。
 
 ---
 
 ## 11. 参考资料
 
-- React Native 文档：<https://reactnative.dev/docs/getting-started>
-- microsoft/react-native-windows Releases：<https://github.com/microsoft/react-native-windows/releases>
-- RNW v0.81 发布说明：<https://devblogs.microsoft.com/react-native/react-native-windows-v0-81-is-here/>
-- microsoft/react-native-macos Releases：<https://github.com/microsoft/react-native-macos/releases>
-- 微博开放平台文档：<https://open.weibo.com/wiki/Mainpage>
+- SwiftUI 文档：<https://developer.apple.com/documentation/swiftui>
+- Liquid Glass（HIG）：<https://developer.apple.com/design/human-interface-guidelines/materials>
+- Xcode 26 Release Notes：<https://developer.apple.com/documentation/xcode-release-notes/xcode-26-release-notes>
+- WebKit / WKWebView 文档：<https://developer.apple.com/documentation/webkit>
+- Swift Package Manager：<https://www.swift.org/documentation/package-manager/>
+- XcodeGen：<https://github.com/yonaskolb/XcodeGen>
+- 微博开放平台文档（备用通道参考）：<https://open.weibo.com/wiki/Mainpage>
+- Web 接口现状参考：[weibo-crawler（432 风控实例）](https://github.com/dataabc/weibo-crawler/issues/565)、[weibo-api-sdk（m 站免登录封装）](https://github.com/shibing624/weibo-api-sdk)、[RSSWorker 微博订阅生成器](https://github.com/yllhwa/RSSWorker)
