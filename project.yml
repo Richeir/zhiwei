@@ -1,0 +1,102 @@
+# ZhiWei · XcodeGen 工程定义（PLAN.md D4 / §5）
+#
+# 规则：
+#   1. 本文件是工程的唯一真相源。`ZhiWei.xcodeproj` 是生成产物，禁止入库、禁止手改 pbxproj。
+#   2. SPM 依赖的版本约束必须写在这里（生成的 xcodeproj 不入库，其内 Package.resolved 随之失效）。
+#   3. 改完跑 `xcodegen generate`；日常可用 `Scripts/bootstrap.sh`。
+#
+# Fork 使用者注意：把下面 DEVELOPMENT_TEAM 换成你自己的 Team ID，bundle id 前缀也换掉，
+# 否则真机签名会撞到作者的免费账号配额（设备数/App ID 数都很紧，见 PLAN.md §8.3）。
+
+name: ZhiWei
+options:
+  bundleIdPrefix: dev.zhiwei
+  deploymentTarget:
+    iOS: "26.0"          # PLAN §1：最低 iOS 26（iPhone 11 / SE2 起），Liquid Glass 是视觉前提
+  createIntermediateGroups: true
+  developmentLanguage: zh-Hans
+  generateEmptyDirectories: true
+  knownRegions:
+    - zh-Hans
+    - en
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"                 # Swift 6 语言模式（工具链实测 6.3.3，见 docs/VERSIONS.md）
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    TARGETED_DEVICE_FAMILY: "1"          # 仅 iPhone
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: RZQCB7PHGD
+    IPHONEOS_DEPLOYMENT_TARGET: "26.0"
+    # Info.plist 由构建设置生成（PLAN §2.2 树里没有独立的 Info.plist，保持目录不膨胀）
+    GENERATE_INFOPLIST_FILE: "YES"
+    INFOPLIST_KEY_CFBundleDisplayName: 知微
+    INFOPLIST_KEY_UILaunchScreen_Generation: "YES"
+    INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+    INFOPLIST_KEY_UIUserInterfaceStyle: "Automatic"   # light/dark 跟随系统（§5 主题条目）
+    ENABLE_PREVIEWS: "YES"
+
+packages:
+  # 快照测试：端点契约快照 + 关键视图视觉回归（PLAN §7）
+  SnapshotTesting:
+    url: https://github.com/pointfreeco/swift-snapshot-testing
+    from: 1.18.0
+
+  # —— 按需启用（准入三问见 PLAN §7，M0 先不进包体）——
+  # Kingfisher：M2 与 wx*.sinaimg.cn 的 Referer 实测一起定；失败退 URLSession 手写缓存
+  #   - url: https://github.com/onevcat/Kingfisher
+  #     from: 8.6.0
+  # Sentry Cocoa SDK：§5 只要求「占位」，当前用 Core/Diagnostics 的 NoopCrashReporter，拿到 DSN 后再开
+  #   - url: https://github.com/getsentry/sentry-cocoa
+  #     from: 8.40.0
+
+targets:
+  ZhiWei:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+        excludes:
+          - "**/.DS_Store"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.zhiwei.app
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+
+  ZhiWeiTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+        excludes:
+          - "**/README.md"
+    dependencies:
+      - target: ZhiWei
+      - package: SnapshotTesting
+        products:
+          - SnapshotTesting
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.zhiwei.app.tests
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/ZhiWei.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ZhiWei"
+        GENERATE_INFOPLIST_FILE: "YES"
+
+schemes:
+  ZhiWei:
+    build:
+      targets:
+        ZhiWei: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - ZhiWeiTests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
