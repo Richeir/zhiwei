@@ -38,11 +38,12 @@ jobs:
       - run: brew install xcodegen
       - run: xcodegen generate
       - name: 编译（模拟器，免签名）
+        # 不接 grep/xcpretty：管道会吞掉 xcodebuild 的退出码，编译失败也会报绿
         run: |
           xcodebuild build \
             -project ZhiWei.xcodeproj -scheme ZhiWei \
             -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
-            CODE_SIGNING_ALLOWED=NO | grep -vE '^(Note:|===|    )" || true
+            CODE_SIGNING_ALLOWED=NO
       - name: 单测（不跑快照：无基准图时快照用例自行跳过）
         run: |
           xcodebuild test \
