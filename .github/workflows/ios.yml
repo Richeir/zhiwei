@@ -1,0 +1,53 @@
+# PLAN §8.2「ios.yml：xcodegen → 模拟器构建（iOS 26 runtime，iPhone + SE 类小屏各一）→ 跑契约快照」
+# 另附 §8.3 的制品归档：`.app` 落 Release（分发锁在 Apple 签名体系内，不上架、不用 TestFlight）
+name: iOS
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  matrix-build:
+    name: 构建 ${{ matrix.device }}
+    runs-on: macos-26
+    strategy:
+      fail-fast: false
+      matrix:
+        # 大 + 小两类屏：Liquid Glass 在紧凑宽度下的排布要单独看
+        include:
+          - device: iPhone 17
+            label: large
+          - device: iPhone 16e
+            label: small
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install xcodegen
+      - run: xcodegen generate
+      - name: 构建
+        run: |
+          xcodebuild build \
+            -project ZhiWei.xcodeproj -scheme ZhiWei \
+            -destination "platform=iOS Simulator,name=${{ matrix.device }},OS=latest" \
+            -derivedDataPath build/DD CODE_SIGNING_ALLOWED=NO
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ZhiWei-${{ matrix.label }}.app
+          path: build/DD/Build/Products/Debug-iphonesimulator/ZhiWei.app
+
+  contract-snapshots:
+    name: 契约与视图快照
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install xcodegen
+      - run: xcodegen generate
+      - name: 快照比对（基准图来自仓库 Tests/**/__Snapshots__）
+        env:
+          CI: "true"          # 让快照用例不再自行跳过
+        run: |
+          xcodebuild test \
+            -project ZhiWei.xcodeproj -scheme ZhiWei \
+            -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
+            -only-testing:ZhiWeiTests/StatusCellSnapshotTests \
+            CODE_SIGNING_ALLOWED=NO

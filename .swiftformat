@@ -1,0 +1,23 @@
+# PLAN §4.1：格式化。刻意保守——格式交给工具，但别让它改语义。
+# 规则名以 `swiftformat --rules` 为准（0.62.1 实测）；臆造名会直接让整个 lint 退出码 70。
+--indent 4
+--maxwidth 140
+--swiftversion 6.0
+--commas inline
+--semicolons never
+--wraparguments before-first
+--wrapparameters before-first
+--closingparen same-line
+--enable isEmpty
+--enable redundantClosure
+# 注：原 `--enable preferSelf`（保留显式 self）为臆造名，swiftformat 无此规则；
+#     该意图由下方 `--disable redundantSelf`（不删 self.）达成。
+--disable blankLinesAtStartOfScope
+--disable blankLineAfterImports
+--disable hoistPatternLet
+--disable redundantSelf
+--disable redundantType
+--disable preferKeyPath
+--disable wrapMultilineStatementBraces
+--disable opaqueGenericParameters
+--disable blankLinesAroundMark

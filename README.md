@@ -26,13 +26,17 @@ iOS 原生体验刷微博：扫码登录、时间线、详情与互动（评论/
 
 ## 快速开始
 
-计划尚未进入实现阶段（M0 起步），代码入库后以下三步即为全部构建流程：
+当前进度：**M0（环境与架构基线）**——壳层、双车道通道定样与 R7 自检面板已入库，业务功能随 M1+ 填充。
+工程由 XcodeGen 生成，`*.xcodeproj` 不入库：
 
 ```bash
 git clone https://github.com/Richeir/zhiwei.git
 cd zhiwei && xcodegen generate   # brew install xcodegen
 # 打开 ZhiWei.xcodeproj，真机需自备签名（免费账号 7 天重签；详见 PLAN.md §8.3）
 ```
+
+或用 `Scripts/bootstrap.sh`（额外校验工具链并接入 pre-commit 钩子）；本地跑一遍 CI 门禁：`Scripts/ci-local.sh all`。
+环境可用版本记录见 `docs/VERSIONS.md`。
 
 ## License
 

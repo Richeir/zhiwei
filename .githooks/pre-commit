@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# pre-commit（PLAN §4.1「SwiftLint + SwiftFormat 配置并接入 pre-commit」）
+# 零新依赖路线：core.hooksPath = .githooks，不用 python 版 pre-commit 框架。
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+staged_swift=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.swift$' || true)
+fail=0
+
+# 红线 1：生成的工程不许入库（PLAN D4）
+if git diff --cached --name-only | grep -qE '\.xcodeproj/|\.xcworkspace/|Package\.resolved$'; then
+  echo "✗ 检测到生成产物被暂存（*.xcodeproj / *.xcworkspace / Package.resolved）" >&2
+  echo "  工程由 project.yml 生成，请：git rm -r --cached <产物> 后重试" >&2
+  fail=1
+fi
+
+# 红线 2：凭证不许进代码/日志（PLAN §5）
+if [ -n "$staged_swift" ]; then
+  hits=$(grep -nEi '(cookie|xsrf|_token)[[:space:]]*=[[:space:]]*"[A-Za-z0-9._%-]{8,}"' $staged_swift 2>/dev/null || true)
+  if [ -n "$hits" ]; then
+    echo "✗ 疑似硬编码凭证：" >&2; echo "$hits" >&2
+    echo "  凭证只允许存在于系统 WebKit CookieJar" >&2
+    fail=1
+  fi
+fi
+
+if [ -n "$staged_swift" ] && command -v swiftformat >/dev/null; then
+  swiftformat $staged_swift --lint --quiet || { echo "✗ swiftformat 不通过（跑 swiftformat Sources Tests）" >&2; fail=1; }
+fi
+if [ -n "$staged_swift" ] && command -v swiftlint >/dev/null; then
+  swiftlint lint --quiet --config .swiftlint.yml || { echo "✗ swiftlint 不通过" >&2; fail=1; }
+fi
+
+[ "$fail" = 0 ] || { echo "提交已阻止。想跳过（不推荐）：git commit --no-verify" >&2; exit 1; }
+exit 0

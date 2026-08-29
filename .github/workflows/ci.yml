@@ -1,0 +1,58 @@
+# PLAN §8.2 PR 门禁：swiftlint + swiftformat --lint + 编译 + 单测
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static:
+    name: 静态检查
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: 工具链
+        run: |
+          brew install xcodegen swiftlint swiftformat
+          xcodebuild -version
+          swift --version
+      - name: swiftformat --lint
+        run: swiftformat Sources Tests --lint
+      - name: swiftlint
+        run: |
+          mkdir -p build
+          swiftlint lint --config .swiftlint.yml --cache-path build/.swiftlint.cache
+
+  build-and-test:
+    name: 编译与单测
+    runs-on: macos-26
+    needs: static
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install xcodegen
+      - run: xcodegen generate
+      - name: 编译（模拟器，免签名）
+        # 不接 grep/xcpretty：管道会吞掉 xcodebuild 的退出码，编译失败也会报绿
+        run: |
+          xcodebuild build \
+            -project ZhiWei.xcodeproj -scheme ZhiWei \
+            -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
+            CODE_SIGNING_ALLOWED=NO
+      - name: 单测（不跑快照：无基准图时快照用例自行跳过）
+        run: |
+          xcodebuild test \
+            -project ZhiWei.xcodeproj -scheme ZhiWei \
+            -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
+            -resultBundlePath build/test.xcresult \
+            CODE_SIGNING_ALLOWED=NO
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-xcresult
+          path: build/test.xcresult
