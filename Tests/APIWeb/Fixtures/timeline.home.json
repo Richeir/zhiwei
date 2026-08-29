@@ -1,0 +1,78 @@
+{
+  "ok": 1,
+  "data": {
+    "max_id": "1725000000000",
+    "list": [
+      {
+        "id": 5100000000000001,
+        "mid": "5100000000000001",
+        "bid": "RaBcDe",
+        "created_at": "Fri Aug 29 12:03:11 +0800 2026",
+        "text": "今天试了下 <a href=\"/search?q=%23%E7%9F%A5%E5%BE%AE%23\">#知微#</a>，<a href=\"/n/richeir\">@richeir</a> 说 SwiftUI 的毛玻璃很省心。<br />详见 https://example.com/a/b?x=1&y=2 这里。",
+        "source": "<a href=\"https://weibo.com\" rel=\"nofollow\">来自 iPhone 客户端</a>",
+        "isLongText": false,
+        "reposts_count": "12",
+        "comments_count": 34,
+        "attitudes_count": 15600,
+        "user": {
+          "id": 7000000000000001,
+          "screen_name": "伊洛",
+          "avatar_hd": "//tvax1.sinaimg.cn/crop.0.0.100.100.180/001.jpg",
+          "verified": true,
+          "verified_type": 0,
+          "verified_reason": "数码博主",
+          "followers_count": "12.4万",
+          "follow_count": 320,
+          "statuses_count": 4102,
+          "description": "写代码，也写微博。"
+        },
+        "pics": [
+          { "url": "https://wx1.sinaimg.cn/bmiddle/001.jpg", "type": "middle" },
+          { "url": "https://wx2.sinaimg.cn/bmiddle/002.jpg", "type": "middle" }
+        ]
+      },
+      {
+        "id": 5100000000000002,
+        "mid": "5100000000000002",
+        "created_at": "Thu Aug 28 22:41:07 +0800 2026",
+        "text": "转发微博",
+        "retweeted_status": {
+          "id": 5099999999999999,
+          "mid": "5099999999999999",
+          "text": "原文：微博 Web 接口的字段又开始变了。",
+          "created_at": "Thu Aug 28 20:00:00 +0800 2026",
+          "user": { "id": 7000000000000002, "screen_name": "某个博主", "followers_count": 900 },
+          "pic_infos": {
+            "A001": {
+              "url": {
+                "thumbnail": "https://wx3.sinaimg.cn/thumbnail/003.jpg",
+                "bmiddle": "https://wx3.sinaimg.cn/bmiddle/003.jpg",
+                "largest": "https://wx3.sinaimg.cn/large/003.jpg"
+              }
+            }
+          },
+          "reposts_count": 1,
+          "comments_count": 2,
+          "attitudes_count": 3
+        },
+        "user": { "id": 7000000000000003, "screen_name": "转发者", "verified_type": -1 },
+        "reposts_count": 0,
+        "comments_count": 0,
+        "attitudes_count": 0
+      },
+      {
+        "id": 5100000000000003,
+        "mid": "5100000000000003",
+        "created_at": 1756468990,
+        "text": "看视频",
+        "user": { "id": 7000000000000004, "screen_name": "视频客" },
+        "page_info": {
+          "type": "video",
+          "page_image_url": "https://wx4.sinaimg.cn/orj480/004.jpg",
+          "urls": { "mp4_720p_mp4": "https://f.video.weibocdn.com/004.mp4" },
+          "title": "一段演示"
+        }
+      }
+    ]
+  }
+}

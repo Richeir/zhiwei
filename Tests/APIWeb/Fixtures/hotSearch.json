@@ -1,0 +1,10 @@
+{
+  "ok": 1,
+  "data": {
+    "realtime": [
+      { "note": "知微 iOS 客户端", "hot_value": 1234567, "is_hot": 1 },
+      { "word": "Liquid Glass", "hot_value": "987654" },
+      { "topic_name": "没有标题的条目", "hot_value": 100 }
+    ]
+  }
+}
