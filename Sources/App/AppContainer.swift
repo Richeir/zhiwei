@@ -13,6 +13,9 @@ final class AppContainer {
     let store: any KVStore
     let crash: CrashReporting
 
+    /// 会话级缓存（登出时一并清）；时间线 Repository 持有同一实例。
+    let timelineCache: TimelineCache
+
     /// 会话检测用的轻量仓储（M1 起承担真实探测端点）
     let timeline: any TimelineProviding
 
@@ -25,8 +28,17 @@ final class AppContainer {
         self.channel = channel
         self.store = store
         self.crash = crash
-        self.session = session ?? UserSession()
-        self.timeline = timeline ?? WebTimelineProvider(channel: channel)
+        let cache = TimelineCache(store: store)
+        self.timelineCache = cache
+        let provider = timeline ?? WebTimelineProvider(
+            channel: channel,
+            cache: cache,
+            staleMilliseconds: { Preferences.timelineStale(store) })
+        self.timeline = provider
+        let resolvedSession = session ?? UserSession()
+        // 登出时把时间线缓存挂进会话的清理链（跨账号不残留，R2）。
+        resolvedSession.sessionScopedCaches.append(cache)
+        self.session = resolvedSession
     }
 
     /// 生产装配：双车道 WebViewChannel + UserDefaults 存储。

@@ -31,6 +31,8 @@ final class UserSession {
     private(set) var status: Status = .unknown
     /// 登录 sheet 的呈现意图（由通道/会话层置位，RootView 消费——避免 Feature 之间互相持有）
     var loginRequested = false
+    /// 会话级缓存（时间线载荷等）：登出时逐个 `purge`，避免跨账号残留（R2）。
+    var sessionScopedCaches: [any SessionScopedCache] = []
 
     func probe(using channel: any WebViewChannel) async {
         if case .probing = status {
@@ -80,9 +82,10 @@ final class UserSession {
         return probe
     }
 
-    /// 登出：清 WebKit 站点数据（凭证唯一居所），并回到未登录态（M1）
+    /// 登出：清 WebKit 站点数据（凭证唯一居所）+ 会话级缓存，并回到未登录态（M1）
     func signOut() async {
         await CookieBridge.purgeAllBrowsingData()
+        sessionScopedCaches.forEach { $0.purge() }
         status = .signedOut
         loginRequested = false
         Logger.log(domain: .auth).info("signed out")
