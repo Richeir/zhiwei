@@ -154,8 +154,11 @@ final class WebViewChannelLive: WebViewChannel, ChannelChunkSink {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 do {
-                    // JS 侧把数据经消息桥分片回传；这里的返回值只是"发完了"的摘要
-                    _ = try await self.host.evaluate("__zw.request(\(literal));")
+                    // JS 侧把数据经消息桥分片回传；这里不关心 evaluateJavaScript 的返回值。
+                    // __zw.request 是 async（返回 Promise），而 evaluateJavaScript 不会 await Promise，
+                    // 拿到 Promise 结果会抛 WKError Code=5（结果类型不受支持）。用 void 丢弃返回值，
+                    // 既触发 fetch 副作用、又不把裸 Promise 交给 WebKit 桥接。
+                    _ = try await self.host.evaluate("void __zw.request(\(literal));")
                 } catch {
                     self.fail(request.id, with: error)
                 }
@@ -273,6 +276,7 @@ final class WebViewChannelLive: WebViewChannel, ChannelChunkSink {
         // 轻量探测端点：不依赖页面上下文，纯原生直发（端点以实测为准，收敛在 APIWeb）
         var request = NativeRequest(url: APIWebEndpoint.sessionProbe.url, method: "GET")
         request.headers = ["Referer": APIWebEndpoint.sessionProbe.referer?.absoluteString ?? "",
+                           "Origin": APIWebEndpoint.sessionProbe.referer?.origin ?? "",
                            "Accept": "application/json"]
         let data = try await sendNative(request)
         let elapsed = Int(Date().timeIntervalSince(started) * 1000)
@@ -288,7 +292,8 @@ final class WebViewChannelLive: WebViewChannel, ChannelChunkSink {
         return probe
     }
 
-    /// 兼容两种探测端点口径：`{"login":true}` 与 `{"data":{"uid":"..."}}`
+    /// 兼容两种探测端点口径：顶层 `{"login":true}` 与 m 站 `{"data":{"login":true,"uid":"..."}}`。
+    /// m 站 `data` 里混有 `vf`(number) / `login`(bool)，不能整块按 `[String:String]` 解，故逐字段取。
     private struct SessionProbeDTO: Decodable {
         var uid: String?
         init(from decoder: any Decoder) throws {
@@ -297,8 +302,12 @@ final class WebViewChannelLive: WebViewChannel, ChannelChunkSink {
                 uid = "probe:login"
                 return
             }
-            if let nested = try? top.decode([String: String].self, forKey: DynamicKey("data")) {
-                uid = nested["uid"]
+            if let data = try? top.nestedContainer(keyedBy: DynamicKey.self, forKey: DynamicKey("data")) {
+                let login = (try? data.decode(Bool.self, forKey: DynamicKey("login"))) ?? false
+                let id = try? data.decode(String.self, forKey: DynamicKey("uid"))
+                if login, let id, !id.isEmpty {
+                    uid = id
+                }
             }
         }
     }

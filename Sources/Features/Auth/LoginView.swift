@@ -7,9 +7,12 @@ import WebKit
 // M0 交付：可见登录 WebView + "完成"手势 + 本地 cookie 观察（判据③ 的人工配合环节）。
 // M1 补：挑战页复用、多端互踢提示、登录成功后的 profile 回灌。
 
-/// 登录页地址：Web 端统一登录（含扫码 / 短信 / 账密三种入口，由用户在页面里自选）
+/// 登录页地址：移动站统一登录（账密 / 短信 / 扫码，由用户在页面里自选），
+/// 登录后回跳 m.weibo.cn，与车道① 同源入口保持一致。
 enum LoginTarget {
-    static let url = URL(string: "https://passport.weibo.com/qrlogin/generate?entry=weibo&return_url=https%3A%2F%2Fweibo.com")!
+    static let url =
+        URL(
+            string: "https://passport.weibo.com/sso/signin?entry=wapsso&source=wapsso&url=https%3A%2F%2Fm.weibo.cn%2F%3Fjumpfrom%3Dweibocom")!
 }
 
 /// 可见登录 WebView 的 UIKit 桥（PLAN D1：个别交互下沉 UIKit）
@@ -54,7 +57,7 @@ struct LoginView: View {
                         Button("取消") { dismiss() }
                     }
                 }
-                .task { await watchCookies() }
+                .task { await watchLogin() }
         }
     }
 
@@ -73,18 +76,32 @@ struct LoginView: View {
         .padding(.bottom, 8)
     }
 
-    /// 轮询本地 cookie 存储（只读系统 WebKit，不发网络请求，因此不占限流预算）
-    private func watchCookies() async {
+    /// 登录成功判定：以 m 站探测的**有效性**为准，而不是“cookie 名字是否存在”。
+    /// 旧会话残留的 cookie 只满足名字判定，会让登录页一打开就误报“检测到登录”；
+    /// 用 `probeSession`（m 站 config）验证真实登录态可消除这类假阳性。
+    private func watchLogin() async {
         let store = WKWebsiteDataStore.default().httpCookieStore
+        // 进入即验证：旧会话若仍有效，直接放行回首页（免重登），不打扰用户
+        if await probeLoggedIn() {
+            finish()
+            return
+        }
         while !Task.isCancelled, observing {
             let cookies = await CookieBridge.allCookies(from: store)
-            if CookieBridge.hasLoginCookies(cookies) {
-                detected = true
+            // 粗筛（登录 cookie 名齐）后再做有效性验证，避免反复探测、也避免残留无效 cookie 误判
+            if CookieBridge.hasLoginCookies(cookies), await probeLoggedIn() {
+                // 服务端确认登录 → 自动关窗回首页（检测已可靠，不再要用户手动点“继续”）
                 observing = false
+                finish()
                 return
             }
-            try? await Task.sleep(for: .seconds(2))
+            try? await Task.sleep(for: .seconds(3))
         }
+    }
+
+    /// 走一次会话探测判断是否真的已登录（探测经限流 actor，间隔安全）
+    private func probeLoggedIn() async -> Bool {
+        await (try? container.channel.probeSession())?.isLoggedIn ?? false
     }
 
     private func finish() {

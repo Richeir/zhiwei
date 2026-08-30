@@ -38,7 +38,7 @@ final class UserSession {
         }
         status = .probing
         do {
-            let probe = try await channel.probeSession()
+            let probe = try await Self.probeWithWarmup(channel)
             guard probe.isLoggedIn, let uid = probe.uid else {
                 status = .signedOut
                 loginRequested = true
@@ -64,6 +64,20 @@ final class UserSession {
         } catch {
             Logger.log(domain: .auth).error("probe failed: \(String(describing: error), privacy: .public)")
         }
+    }
+
+    /// 冷启动 WebKit 可能还没把磁盘 cookie 载入（`getAllCookies` 首次返回 0 条），
+    /// 与「真未登录」区分：完全没读到登录 cookie 时短延迟重试，给存储预热时间。
+    private static func probeWithWarmup(
+        _ channel: any WebViewChannel, maxAttempts: Int = 4) async throws -> SessionProbe {
+        var probe = try await channel.probeSession()
+        var attempt = 1
+        while !probe.isLoggedIn, !probe.sawLoginCookies, attempt < maxAttempts {
+            try? await Task.sleep(for: .milliseconds(300 * attempt))
+            probe = try await channel.probeSession()
+            attempt += 1
+        }
+        return probe
     }
 
     /// 登出：清 WebKit 站点数据（凭证唯一居所），并回到未登录态（M1）

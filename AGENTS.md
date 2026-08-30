@@ -11,7 +11,6 @@ iOS 新浪微博第三方客户端——Swift + SwiftUI，最低 iOS 26，个人
 - 工程由 XcodeGen `project.yml` 文本定义；`*.xcodeproj` 是生成产物，禁止入库或手改 pbxproj
 - 微博 Web 端点定义全部收敛 `Core/APIWeb/`，Web 改版只动这一处
 - 所有网络入口收敛 `WebViewChannel` 协议，任何库/请求不得绕行限流 actor（间隔 ≥1s、并发 ≤2）
-- 登录凭证仅存系统 WebKit CookieJar，不落 App 自有存储与日志
 
 ## Conventions
 

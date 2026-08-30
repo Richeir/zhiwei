@@ -9,7 +9,7 @@ import XCTest
 final class TimelineProviderTests: XCTestCase {
     private func provider(_ fixture: String) throws -> (WebTimelineProvider, FakeWebViewChannel) {
         let fake = try FakeWebViewChannel(responses: [
-            "friends_timeline": Fixtures.data(named: fixture)
+            "getIndex": Fixtures.data(named: fixture)
         ])
         return (WebTimelineProvider(channel: fake), fake)
     }
@@ -24,7 +24,7 @@ final class TimelineProviderTests: XCTestCase {
         XCTAssertEqual(fake.fetchLog.count, 1)
         XCTAssertEqual(
             fake.fetchLog.first?.url.path,
-            "/ajax/statuses/friends_timeline",
+            "/api/container/getIndex",
             "请求必须来自端点注册表，不许手拼 URL")
 
         let cursor = WebCursor.first.advancing(with: page)
@@ -39,7 +39,7 @@ final class TimelineProviderTests: XCTestCase {
     }
 
     func testNotLoggedInMapsToSessionState() async {
-        let fake = FakeWebViewChannel(errors: ["friends_timeline": .notLoggedIn])
+        let fake = FakeWebViewChannel(errors: ["getIndex": .notLoggedIn])
         let model = TimelineModel()
         await model.load(provider: WebTimelineProvider(channel: fake))
         XCTAssertEqual(model.phase, .signedOut)
@@ -47,19 +47,19 @@ final class TimelineProviderTests: XCTestCase {
     }
 
     func testFailureKeepsExistingContent() async throws {
-        let ok = try FakeWebViewChannel(responses: ["friends_timeline": Fixtures.data(named: "timeline.home")])
+        let ok = try FakeWebViewChannel(responses: ["getIndex": Fixtures.data(named: "timeline.home")])
         let model = TimelineModel()
         await model.load(provider: WebTimelineProvider(channel: ok))
         XCTAssertEqual(model.statuses.count, 3)
 
         // 第二页坏掉：已展示的内容必须留着（R1：可用性优先于新鲜度）
-        let broken = FakeWebViewChannel(errors: ["friends_timeline": .timeout])
+        let broken = FakeWebViewChannel(errors: ["getIndex": .timeout])
         await model.load(provider: WebTimelineProvider(channel: broken), more: true)
         XCTAssertEqual(model.statuses.count, 3, "分页失败不许清屏")
     }
 
     func testIdenticalRequestsShareOneSignature() async throws {
-        let fake = try FakeWebViewChannel(responses: ["friends_timeline": Fixtures.data(named: "timeline.home")])
+        let fake = try FakeWebViewChannel(responses: ["getIndex": Fixtures.data(named: "timeline.home")])
         let provider = WebTimelineProvider(channel: fake)
         _ = try await provider.loadPage(after: .first)
         _ = try await provider.loadPage(after: .first)
@@ -70,13 +70,13 @@ final class TimelineProviderTests: XCTestCase {
     }
 
     func testDecodeFailureNamesTheEndpoint() async throws {
-        let fake = FakeWebViewChannel(responses: ["friends_timeline": Data("<html>改版了</html>".utf8)])
+        let fake = FakeWebViewChannel(responses: ["getIndex": Data("<html>改版了</html>".utf8)])
         do {
             _ = try await WebTimelineProvider(channel: fake).loadPage(after: .first)
             XCTFail("应当解码失败")
         } catch let error as APIError {
             guard case .decode(let field, _) = error else { return XCTFail("应为 .decode，实际 \(String(describing: error))") }
-            XCTAssertEqual(field, APIWebEndpoint.homeTimeline.key, "错误要指到端点 key，改版时才知道动哪个文件")
+            XCTAssertEqual(field, APIWebEndpoint.homeTimelineFallback.key, "错误要指到端点 key，改版时才知道动哪个文件")
         }
     }
 }
