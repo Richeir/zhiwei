@@ -26,6 +26,12 @@ struct TimelineHomeView: View {
                 await model.load(provider: container.timeline)
             }
         }
+        .onChange(of: container.session.status) { _, next in
+            // 登录态从外部（登录页 finish）转为已登录时，首页自动补一次加载
+            if next.isLoggedIn, model.statuses.isEmpty {
+                Task { await model.load(provider: container.timeline) }
+            }
+        }
         .sheet(isPresented: $showLogin) {
             LoginView()
         }
