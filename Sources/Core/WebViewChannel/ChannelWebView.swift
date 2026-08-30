@@ -181,8 +181,9 @@ final class ChannelWebViewHost: NSObject, WKNavigationDelegate {
         strategy
     }
 
-    /// 通道页：必须是 weibo.com 源，同源 fetch 才能自动带 cookie
-    static let channelURL = URL(string: "https://weibo.com/")!
+    /// 通道页：移动 UA 下 weibo.com 会 302 跳到 m 站，故直接以 m 站为同源入口，
+    /// 保证车道① 页面内 fetch 与 m 站接口同源（不触发 CORS preflight）。
+    static let channelURL = URL(string: "https://m.weibo.cn/")!
 
     /// 加载通道页并等 document 就绪（超时即视为判据① 失败的前兆之一）
     func loadChannelPage(timeout: Duration = .seconds(20)) async throws {

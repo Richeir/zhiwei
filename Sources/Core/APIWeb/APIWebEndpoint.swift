@@ -53,9 +53,9 @@ extension APIWebEndpoint {
     /// —— 会话 ——
     static let sessionProbe = APIWebEndpoint(
         key: "session.probe",
-        "https://weibo.com/ajax/profile/overview",
-        purpose: .probe, referer: "https://weibo.com/",
-        note: "登录态探测：200 且带 data 即视为已登录；口径待实测（备选 m.weibo.cn/api/config）")
+        "https://m.weibo.cn/api/config",
+        purpose: .probe, referer: "https://m.weibo.cn/",
+        note: "登录态探测（m 站口径，与 m 站登录 cookie 同域）：回包 data.login==true 且有 data.uid 即已登录")
     static let logout = APIWebEndpoint(
         key: "session.logout",
         "https://passport.weibo.com/bodysignout/signup",
@@ -70,9 +70,9 @@ extension APIWebEndpoint {
         note: "关注时间线主口径；游标 max_id / 分页 page 均需实测确认")
     static let homeTimelineFallback = APIWebEndpoint(
         key: "timeline.home.fallback",
-        "https://m.weibo.cn/api/container/getIndex",
+        "https://m.weibo.cn/api/container/getIndex?containerid=102803",
         referer: "https://m.weibo.cn/",
-        note: "m 站兜底：containerid 口径（102803 系）；实测后再定 containerid 取值")
+        note: "m 站首页信息流（当前主口径）：containerid=102803 为 m 站首页公认值，翻页靠 page 参数追加；回包走 data.cards[].mblog")
 
     /// —— 详情与互动 ——
     static let statusShow = APIWebEndpoint(

@@ -15,7 +15,9 @@ protocol TimelineProviding {
 @MainActor
 struct WebTimelineProvider: TimelineProviding {
     let channel: any WebViewChannel
-    var endpoint: APIWebEndpoint = .homeTimeline
+    /// 移动 UA 下 PC 站 weibo.com 会被 302 跳 m 站，车道① 与 m 站接口同源才能 fetch 成功，
+    /// 故首页默认走 m 站 container 口径（homeTimelineFallback）。
+    var endpoint: APIWebEndpoint = .homeTimelineFallback
 
     func loadPage(after cursor: WebCursor) async throws -> StatusPage {
         let request = WebChannelRequest(
