@@ -150,7 +150,7 @@ my-weibo-app/
 ### M2 · 时间线
 
 - [x] 数据层：关注时间线 Web 端点封装（移动 UA 下 weibo.com 会 302 跳 m 站，故以 m.weibo.cn container 为主口径、weibo.com ajax 备用，端点以实测为准并全部收敛在 `Core/APIWeb/`）+ 未登录空态
-- [ ] 节流与缓存落地：限流 actor 生效、Repository 层 staleTime + 磁盘缓存（**降低风控触发概率优先于数据新鲜度**）
+- [x] 节流与缓存落地：限流 actor 生效、Repository 层 staleTime + 磁盘缓存（**降低风控触发概率优先于数据新鲜度**）
 - [x] 微博 Cell 组件：头像、昵称、认证标识、时间(相对时间)、来源、正文(@/话题/链接富文本,`AttributedString` 分段着色可点击)、配图九宫格
 - [ ] 下拉刷新 + 无限滚动分页（游标参数以 Web 端点实测为准）
 - [ ] 图片加载 spike：`wx*.sinaimg.cn` 是否需要伪造 Referer、Kingfisher/`AsyncImage` 自定义请求头实测（与 §7 图片库验证合并）
